@@ -1,21 +1,24 @@
 /* FormDesignerPage.tsx */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
-import { Container, Row, Col, Button, ButtonGroup, Card, Nav } from "react-bootstrap";
-import { FaPlay, FaUndo, FaRedo as FaRedoIcon, FaPlus } from "react-icons/fa";
 import {
-    DndContext,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    DragOverlay,
-} from "@dnd-kit/core";
+    Container,
+    Row,
+    Col,
+    Button,
+    ButtonGroup,
+    Card,
+    Nav,
+} from "react-bootstrap";
+import { FaPlay, FaUndo, FaRedo, FaPlus } from "react-icons/fa";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-
-import { useNavigate } from "react-router-dom";
+//import { useNavigate } from "react-router-dom";
+import { DndContext, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
+import { rectIntersection } from "@dnd-kit/core";
 
 import useGridDesigner from "./hooks/useGridDesigner";
 import { useAutosave } from "./hooks/useAutosave";
+
 import FormBuilderPanel from "./admin/FormBuilderPanel";
 import FieldPropertiesPanel from "./admin/FieldPropertiesPanel";
 import RuleBuilderPanel from "./admin/RuleBuilderPanel";
@@ -26,11 +29,43 @@ import FormRunner from "./enduser/FormRunner";
 
 import type { FormField, FieldType } from "./types/formTypes";
 
-import { useQuestionBank } from "../questions-banks/hooks/useQuestionBank";
-import QuestionBankPanel from "../questions-banks/questionsBankForm/QuestionBankPanel";
+const toolbarStyle: React.CSSProperties = {
+    height: 48,
+    borderBottom: "1px solid #eee",
+    background: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0 16px",
+    position: "sticky",
+    top: 0,
+    zIndex: 10,
+};
+
+const dragOverlayStyle: React.CSSProperties = {
+    background: "#fff",
+    padding: 12,
+    borderRadius: 10,
+    boxShadow: "0 12px 30px rgba(0,0,0,.25)",
+    width: 220,
+};
+
+const canvasWrapperStyle: React.CSSProperties = {
+    padding: 20,
+    background: "#f8f9fa",
+    height: "100%",
+    overflow: "auto",
+};
+
+const emptyCanvasCardStyle: React.CSSProperties = {
+    padding: 24,
+    textAlign: "center",
+    borderRadius: 10,
+    boxShadow: "0 4px 12px rgba(0,0,0,.08)",
+};
 
 const FormDesignerPage: React.FC = () => {
-    const navigate = useNavigate();
+    //  const navigate = useNavigate();
 
     const {
         rows,
@@ -47,38 +82,36 @@ const FormDesignerPage: React.FC = () => {
         resizeColumnUnits,
         moveFieldWithinColumn,
         moveFieldBetweenColumns,
-        moveColumn,
-        moveRow,
         removeRow,
         removeColumn,
+        moveRow,
+        moveColumn,
         undo,
         redo,
         canUndo,
         canRedo,
     } = useGridDesigner();
 
-    const qb = useQuestionBank();
-
     const [showPreview, setShowPreview] = useState(false);
     const [activeRightTab, setActiveRightTab] =
         useState<"properties" | "rules" | "json">("properties");
 
     const [showTableModal, setShowTableModal] = useState(false);
-    const [tableFieldId, setTableFieldId] = useState<string | null>(null);
     const [pendingNewField, setPendingNewField] = useState<any>(null);
+    const [tableFieldId, setTableFieldId] = useState<string | null>(null);
 
     const [draggingField, setDraggingField] = useState<FormField | null>(null);
-    const [draggingPaletteType, setDraggingPaletteType] = useState<string | null>(null);
+    const [draggingPaletteType, setDraggingPaletteType] = useState<string | null>(
+        null
+    );
 
-    const formId = "demo-form-id-123";
+    useAutosave("demo-form", () => ({ rows }));
 
-    try {
-        useAutosave(formId, () => ({ rows }));
-    } catch {
-        console.warn("Autosave failed");
-    }
-
-    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }));
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 6 },
+        })
+    );
 
     const getSelectedFieldId = () =>
         selected?.type === "field" ? selected.id : null;
@@ -87,28 +120,29 @@ const FormDesignerPage: React.FC = () => {
         const id = getSelectedFieldId();
         return id ? allFields.find((f) => f.id === id) ?? null : null;
     };
+    const handleDragOver = ({ active, over }: any) => {
+        if (!over) return;
 
-    const handleUseQuestion = (q: { label: string; key: string; type: FieldType }) => {
-        const field: FormField = {
-            id: crypto.randomUUID(),
-            key: q.key,
-            label: q.label,
-            type: q.type,
-            placeholder: "",
-        };
+        const activeData = active.data.current;
+        const overData = over.data.current;
 
-        if (!rows.length) addRow([12]);
+        // ===== FIELD DRAG =====
+        if (activeData?.type === "field" && overData?.type === "field") {
+            const src = findFieldLocation(activeData.fieldId);
+            const dst = findFieldLocation(overData.fieldId);
+            if (!src || !dst) return;
 
-        const selectedId = getSelectedFieldId();
-        if (selectedId) {
-            const loc = findFieldLocation(selectedId);
-            if (loc) {
-                addFieldToColumn(loc.rowId, loc.colId, field);
-                return;
+            if (src.colId !== dst.colId) {
+                moveFieldBetweenColumns(
+                    src.rowId,
+                    src.colId,
+                    src.index,
+                    dst.rowId,
+                    dst.colId,
+                    dst.index
+                );
             }
         }
-
-        addFieldToColumn(rows[0].id, rows[0].columns[0].id, field);
     };
 
     const handleDragStart = (event: any) => {
@@ -119,189 +153,138 @@ const FormDesignerPage: React.FC = () => {
             const loc = findFieldLocation(id);
             setDraggingField(loc?.col?.fields?.[loc.index] ?? null);
             setDraggingPaletteType(null);
-        } else if (data?.from === "palette") {
+        }
+
+        if (data?.from === "palette") {
             setDraggingPaletteType(String(data.fieldType));
             setDraggingField(null);
         }
     };
 
-    const handleDragEnd = (event: any) => {
+    const handleDragEnd = ({ active, over }: any) => {
         setDraggingField(null);
         setDraggingPaletteType(null);
-
-        const { active, over } = event;
         if (!over) return;
 
-        const a = active?.data?.current;
-        const o = over?.data?.current;
+        const a = active.data.current;
+        const o = over.data.current;
 
-        if (a?.from === "palette") {
-            const type = a.fieldType as FieldType;
-            const rowId = o?.rowId;
-            const colId = o?.colId;
-
+        /* ================= PALETTE → COLUMN ================= */
+        if (a?.from === "palette" && o?.from === "column-drop") {
             const field: FormField = {
                 id: crypto.randomUUID(),
-                key: `${type}_${Math.random().toString(36).slice(2, 6)}`,
-                label: type.charAt(0).toUpperCase() + type.slice(1),
-                type,
-                placeholder: "Enter value",
+                type: a.fieldType,
+                key: `${a.fieldType}_${Date.now()}`,
+                label: a.fieldType,
             };
-
-            if (!rows.length) addRow([12]);
-
-            if (type === "table") {
-                setPendingNewField({
-                    rowId,
-                    colId,
-                    field: {
-                        ...field,
-                        columns: [{ id: "c1", key: "col_1", label: "Column 1" }],
-                        rows: 1,
-                    },
-                });
-                setShowTableModal(true);
-                return;
-            }
-
-            if (rowId && colId) addFieldToColumn(rowId, colId, field);
-            else addFieldToColumn(rows[0].id, rows[0].columns[0].id, field);
-
+            addFieldToColumn(o.rowId, o.colId, field);
             return;
         }
 
-        if (a?.from === "canvas-item") {
-            const activeId = String(active.id).replace("field:", "");
-            if (String(over.id).startsWith("field:")) {
-                const overId = String(over.id).replace("field:", "");
-                const src = findFieldLocation(activeId);
-                const dst = findFieldLocation(overId);
+        /* ================= FIELD MOVE ================= */
+        if (a?.from === "field" && over.id.startsWith("field:")) {
+            const src = findFieldLocation(a.fieldId);
+            const dstId = over.id.replace("field:", "");
+            const dst = findFieldLocation(dstId);
+            if (!src || !dst) return;
 
-                if (!src || !dst) return;
-
-                if (src.rowId === dst.rowId && src.colId === dst.colId) {
-                    moveFieldWithinColumn(src.rowId, src.colId, src.index, dst.index);
-                } else {
-                    moveFieldBetweenColumns(
-                        src.rowId,
-                        src.colId,
-                        src.index,
-                        dst.rowId,
-                        dst.colId,
-                        dst.index
-                    );
-                }
+            if (src.rowId === dst.rowId && src.colId === dst.colId) {
+                moveFieldWithinColumn(src.rowId, src.colId, src.index, dst.index);
+            } else {
+                moveFieldBetweenColumns(
+                    src.rowId,
+                    src.colId,
+                    src.index,
+                    dst.rowId,
+                    dst.colId,
+                    dst.index
+                );
             }
+            return;
+        }
+
+        /* ================= COLUMN MOVE ================= */
+        if (a?.from === "column" && o?.from === "column") {
+            if (a.rowId !== o.rowId) return; // ❌ no cross-row columns
+
+            moveColumn(a.rowId, a.index, o.index);
+            return;
+        }
+
+        /* ================= ROW MOVE ================= */
+        if (a?.from === "row" && o?.from === "row") {
+            moveRow(a.index, o.index);
         }
     };
 
-    const renderToolbar = () => (
-        <div
-            className="d-flex align-items-center justify-content-between px-3 py-2 shadow-sm bg-white sticky-top"
-            style={{
-                borderBottom: "1px solid #eee",
-                height: 48,
-                zIndex: 50,
-            }}
-        >
-            <div className="d-flex align-items-center gap-2">
+    return (
+        <Container fluid className="p-0 h-100">
+            {/* TOOLBAR */}
+            <div style={toolbarStyle}>
                 <ButtonGroup size="sm">
-                    <Button variant="outline-secondary" onClick={() => canUndo && undo()}>
+                    <Button
+                        variant="outline-secondary"
+                        disabled={!canUndo}
+                        onClick={undo}
+                    >
                         <FaUndo />
                     </Button>
-                    <Button variant="outline-secondary" onClick={() => canRedo && redo()}>
-                        <FaRedoIcon />
+                    <Button
+                        variant="outline-secondary"
+                        disabled={!canRedo}
+                        onClick={redo}
+                    >
+                        <FaRedo />
                     </Button>
                 </ButtonGroup>
 
-                <span className="ms-2 text-muted small fw-semibold">Form Designer</span>
+                <Button
+                    size="sm"
+                    variant={showPreview ? "success" : "primary"}
+                    style={{ borderRadius: 20, padding: "4px 14px" }}
+                    onClick={() => setShowPreview((v) => !v)}
+                >
+                    <FaPlay className="me-1" />
+                    {showPreview ? "Back" : "Preview"}
+                </Button>
             </div>
 
-            <Button
-                size="sm"
-                variant={showPreview ? "success" : "primary"}
-                onClick={() => setShowPreview((v) => !v)}
-                style={{ padding: "4px 14px", borderRadius: 20 }}
+            <DndContext
+                sensors={sensors}
+                collisionDetection={rectIntersection}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}   // ✅ REQUIRED
+                onDragEnd={handleDragEnd}
             >
-                <FaPlay className="me-1" />
-                {showPreview ? "Back" : "Preview"}
-            </Button>
-        </div>
-    );
-    const handleCreateTableFromModal = (updated: any) => {
-        const { rowId, colId, field } = pendingNewField ?? {};
-        if (!field) return;
-
-        const final = { ...field, ...updated };
-        const row = rows.find((r) => r.id === rowId) ?? rows[0];
-        const col = colId ?? row.columns[0].id;
-
-        addFieldToColumn(row.id, col, final);
-
-        setShowTableModal(false);
-        setPendingNewField(null);
-    };
-    /* --------------------------------------------
-          TABLE MODAL
-       --------------------------------------------- */
-    const openTableModal = (fieldId?: string) => {
-        const id = fieldId ?? getSelectedFieldId();
-        if (!id) return;
-
-        setTableFieldId(id);
-        setPendingNewField(null);
-        setShowTableModal(true);
-    };
-    return (
-        <Container fluid className="p-0 bg-light h-100">
-            {renderToolbar()}
-
-            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                 <Row className="g-0" style={{ height: "calc(100vh - 48px)" }}>
-
-                    {/* LEFT PANEL */}
-                    <Col xs={12} md={3} className="border-end bg-white overflow-auto p-3">
+                    {/* LEFT */}
+                    <Col md={3} className="border-end bg-white overflow-auto">
                         <FormBuilderPanel
-                            onAddField={(type: string) => {
+                            onAddField={(type) => {
                                 if (!rows.length) addRow([12]);
                                 const row = rows[0];
-                                const colId = row.columns[0].id;
-
-                                const field: FormField = {
+                                addFieldToColumn(row.id, row.columns[0].id, {
                                     id: crypto.randomUUID(),
-                                    key: `${type}_${Math.random().toString(36).slice(2, 6)}`,
+                                    key: `${type}_${Date.now()}`,
                                     label: type,
                                     type: type as FieldType,
-                                    placeholder: "Enter value",
-                                };
-
-                                if (type === "table") {
-                                    setPendingNewField({
-                                        rowId: row.id,
-                                        colId,
-                                        field,
-                                    });
-                                    setShowTableModal(true);
-                                    return;
-                                }
-
-                                addFieldToColumn(row.id, colId, field);
+                                });
                             }}
                         />
                     </Col>
 
                     {/* CANVAS */}
-                    <Col xs={12} md={6} className="p-4 overflow-auto bg-light">
+                    <Col md={6} style={canvasWrapperStyle}>
                         {!showPreview ? (
                             <>
                                 {!rows.length && (
-                                    <Card className="p-4 text-center shadow-sm border-0 mb-3">
+                                    <Card style={emptyCanvasCardStyle}>
                                         <b>No rows yet</b>
                                         <div className="text-muted small mb-3">
-                                            Drag fields from the left to start
+                                            Drag fields from left
                                         </div>
                                         <Button size="sm" onClick={() => addRow([12])}>
-                                            <FaPlus className="me-1" /> Add Row
+                                            <FaPlus /> Add Row
                                         </Button>
                                     </Card>
                                 )}
@@ -310,11 +293,11 @@ const FormDesignerPage: React.FC = () => {
                                     items={rows.map((r) => `row:${r.id}`)}
                                     strategy={verticalListSortingStrategy}
                                 >
-                                    {rows.map((r, idx) => (
+                                    {rows.map((r, i) => (
                                         <RowContainer
                                             key={r.id}
                                             row={r}
-                                            index={idx}
+                                            index={i}
                                             onAddColumn={addColumn}
                                             onDropField={addFieldToColumn}
                                             onResize={resizeColumnUnits}
@@ -323,9 +306,7 @@ const FormDesignerPage: React.FC = () => {
                                             deleteField={deleteField}
                                             deleteRow={removeRow}
                                             deleteColumn={removeColumn}
-                                            moveColumn={moveColumn}
-                                            moveRow={moveRow}
-                                            setSelectedField={(id) => {
+                                            setSelectedField={(id: any) => {
                                                 setSelectedField(id);
                                                 setActiveRightTab("properties");
                                             }}
@@ -334,36 +315,34 @@ const FormDesignerPage: React.FC = () => {
                                 </SortableContext>
                             </>
                         ) : (
-                            <div className="p-4 bg-white border rounded shadow-sm">
+                            <Card className="p-4">
                                 <FormRunner rows={rows} />
-                            </div>
+                            </Card>
                         )}
                     </Col>
 
-                    {/* RIGHT PANEL — INSPECTOR + PREMIUM QUESTION BANK */}
-                    <Col xs={12} md={3} className="border-start bg-white d-flex flex-column">
+                    {/* RIGHT */}
+                    <Col md={3} className="border-start bg-white d-flex flex-column">
+                        <div className="p-3 fw-bold">Inspector</div>
 
-                        {/* Inspector Header */}
-                        <div className="p-3 border-bottom fw-bold text-dark" style={{ fontSize: "14px" }}>
-                            Inspector
-                        </div>
+                        <Nav
+                            variant="tabs"
+                            activeKey={activeRightTab}
+                            onSelect={(k: any) => setActiveRightTab(k)}
+                            className="px-3"
+                        >
+                            <Nav.Item>
+                                <Nav.Link eventKey="properties">Properties</Nav.Link>
+                            </Nav.Item>
+                            <Nav.Item>
+                                <Nav.Link eventKey="rules">Rules</Nav.Link>
+                            </Nav.Item>
+                            <Nav.Item>
+                                <Nav.Link eventKey="json">JSON</Nav.Link>
+                            </Nav.Item>
+                        </Nav>
 
-                        {/* Tabs */}
-                        <div className="px-3">
-                            <Nav
-                                variant="tabs"
-                                activeKey={activeRightTab}
-                                onSelect={(k: any) => setActiveRightTab(k)}
-                                className="admin-tabs"
-                            >
-                                <Nav.Item><Nav.Link eventKey="properties">Properties</Nav.Link></Nav.Item>
-                                <Nav.Item><Nav.Link eventKey="rules">Rules</Nav.Link></Nav.Item>
-                                <Nav.Item><Nav.Link eventKey="json">JSON</Nav.Link></Nav.Item>
-                            </Nav>
-                        </div>
-
-                        {/* Inspector Content */}
-                        <div className="p-3 flex-grow-1 overflow-auto" style={{ minHeight: 0 }}>
+                        <div className="p-3 flex-grow-1 overflow-auto">
                             {activeRightTab === "properties" && (
                                 <FieldPropertiesPanel
                                     field={getSelectedField()}
@@ -371,7 +350,6 @@ const FormDesignerPage: React.FC = () => {
                                         const id = getSelectedFieldId();
                                         if (id) updateField(id, patch);
                                     }}
-                                    openTableDesigner={openTableModal}
                                 />
                             )}
 
@@ -388,82 +366,45 @@ const FormDesignerPage: React.FC = () => {
 
                             {activeRightTab === "json" && <JsonEnginePanel rows={rows} />}
                         </div>
-
-                        {/* BEAUTIFUL ADMIN-STYLE QUESTION BANK */}
-                        <div
-                            className="border-top bg-white"
-                            style={{
-                                height: "250px",
-                                padding: "12px",
-                                boxShadow: "0 -4px 10px rgba(0,0,0,0.06)",
-                                borderTopLeftRadius: "10px",
-                                borderTopRightRadius: "10px",
-                            }}
-                        >
-                            <div className="d-flex justify-content-between align-items-center mb-3">
-                                <div className="fw-bold text-dark" style={{ fontSize: "13px" }}>
-                                    📚 Question Bank
-                                </div>
-
-                                <button
-                                    className="btn btn-sm btn-primary"
-                                    style={{
-                                        padding: "2px 10px",
-                                        fontSize: "11px",
-                                        borderRadius: "6px",
-                                    }}
-                                    onClick={() => navigate("/question-bank")}
-                                >
-                                    Manage
-                                </button>
-                            </div>
-
-                            <div
-                                style={{
-                                    height: "190px",
-                                    overflowY: "auto",
-                                    paddingRight: "6px",
-                                }}
-                            >
-                                <QuestionBankPanel
-                                    items={qb.items}
-                                    onUseQuestion={handleUseQuestion}
-                                />
-                            </div>
-                        </div>
-
                     </Col>
                 </Row>
+
+                {/* DRAG OVERLAY */}
+                <DragOverlay>
+                    {draggingField && (
+                        <div style={dragOverlayStyle}>
+                            <b>{draggingField.label}</b>
+                            <div className="text-muted small">{draggingField.type}</div>
+                        </div>
+                    )}
+                    {draggingPaletteType && (
+                        <div style={dragOverlayStyle}>
+                            <b>{draggingPaletteType}</b>
+                            <div className="text-muted small">New Field</div>
+                        </div>
+                    )}
+                </DragOverlay>
             </DndContext>
 
-            {/* DRAG PREVIEW */}
-            <DragOverlay>
-                {draggingField ? (
-                    <div className="p-2 bg-white shadow-sm border rounded" style={{ width: 220 }}>
-                        <b>{draggingField.label}</b>
-                        <div className="text-muted small">{draggingField.type}</div>
-                    </div>
-                ) : draggingPaletteType ? (
-                    <div className="p-2 bg-white shadow-sm border rounded" style={{ width: 180 }}>
-                        <b>{draggingPaletteType}</b>
-                        <div className="text-muted small">New Field</div>
-                    </div>
-                ) : null}
-            </DragOverlay>
-
-            {/* TABLE DESIGNER */}
+            {/* TABLE MODAL */}
             <TableDesignerModal
                 open={showTableModal}
+                tableFieldId={tableFieldId}
+                pendingNewField={pendingNewField}
+                findFieldLocation={findFieldLocation}
+                onSave={(updated) => updateField(tableFieldId!, updated)}
+                onCreate={(updated) => {
+                    if (!pendingNewField) return;
+                    const { rowId, colId, field } = pendingNewField;
+                    addFieldToColumn(rowId, colId, { ...field, ...updated });
+                    setShowTableModal(false);
+                    setPendingNewField(null);
+                }}
                 onClose={() => {
                     setShowTableModal(false);
                     setPendingNewField(null);
                     setTableFieldId(null);
                 }}
-                tableFieldId={tableFieldId}
-                findFieldLocation={findFieldLocation}
-                onSave={(updated) => updateField(tableFieldId!, updated)}
-                pendingNewField={pendingNewField}
-                onCreate={handleCreateTableFromModal}
             />
         </Container>
     );

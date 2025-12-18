@@ -36,18 +36,25 @@ const ResizableColumn = ({ rowId, colId, rowContainerRef, onResizeUnits, childre
             {children}
 
             <div
-                className="resize-handle"
                 onMouseDown={startResize}
                 style={{
                     position: "absolute",
-                    right: -6,
+                    right: -5,
                     top: 0,
-                    width: 12,
+                    width: 10,
                     height: "100%",
                     cursor: "col-resize",
-                    zIndex: 30,
+                    background: "transparent",
+                    transition: "background 120ms ease",
                 }}
+                onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "rgba(78,140,255,.2)")
+                }
+                onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "transparent")
+                }
             />
+
         </div>
     );
 };

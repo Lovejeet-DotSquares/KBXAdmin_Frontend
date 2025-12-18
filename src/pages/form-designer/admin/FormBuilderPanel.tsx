@@ -4,49 +4,64 @@ import { useDraggable } from "@dnd-kit/core";
 import { Form } from "react-bootstrap";
 
 import {
-    FaPen, FaFont, FaClipboard, FaListAlt, FaCheckSquare, FaRegListAlt, FaToggleOn,
-    FaCalendarAlt, FaUpload, FaFileAlt, FaImages, FaPlusSquare, FaTable,
-    FaSignature, FaHeading, FaListOl, FaMinus
+    FaPen, FaClipboard, FaToggleOn,
+    FaCalendarAlt, FaUpload, FaFileAlt, FaImages, FaTable,
+    FaSignature, FaHeading, FaListOl, FaEnvelope, FaPhone,
+    FaParagraph, FaCode,
+    FaRedo, FaCalculator,
+    FaList, FaCheckSquare
 } from "react-icons/fa";
 
+/* ----------------------------------------------
+   PALETTE CATEGORIES
+---------------------------------------------- */
 const categories = [
     {
-        title: "Fields",
+        title: "Basic Fields",
         items: [
-            { type: "text", label: "Input", icon: <FaPen /> },
-            { type: "textarea", label: "Textarea", icon: <FaFont /> },
+            { type: "text", label: "Text Input", icon: <FaPen /> },
             { type: "number", label: "Number", icon: <FaClipboard /> },
-            { type: "select", label: "Dropdown", icon: <FaListAlt /> },
-            { type: "checkbox", label: "Checkbox", icon: <FaCheckSquare /> },
-            { type: "radio", label: "Radio", icon: <FaRegListAlt /> },
-            { type: "yesno", label: "Toggle", icon: <FaToggleOn /> },
             { type: "date", label: "Date", icon: <FaCalendarAlt /> },
+            { type: "email", label: "Email", icon: <FaEnvelope /> },
+            { type: "phone", label: "Phone", icon: <FaPhone /> },
+
+            // ✅ NEW
+            { type: "select", label: "Dropdown", icon: <FaList /> },
+            { type: "multiselect", label: "Multi Select", icon: <FaCheckSquare /> },
+            { type: "toggle", label: "Toggle Switch", icon: <FaToggleOn /> },
+
+            { type: "yesno", label: "Yes / No", icon: <FaToggleOn /> },
             { type: "file", label: "File Upload", icon: <FaUpload /> },
-            { type: "signature", label: "Signature", icon: <FaSignature /> },
         ],
     },
+
     {
-        title: "Static",
+        title: "Document Content",
         items: [
-            { type: "heading1", label: "Heading 1", icon: <FaHeading /> },
-            { type: "subtitle", label: "Subtitle", icon: <FaFont /> },
-            { type: "label", label: "Label", icon: <FaFileAlt /> },
-            { type: "static", label: "Text Block", icon: <FaFont /> },
-            { type: "image", label: "Image", icon: <FaImages /> },
-            { type: "divider", label: "Divider", icon: <FaMinus /> },
-            { type: "numbered", label: "Numbered", icon: <FaListOl /> },
-            { type: "button", label: "Button", icon: <FaPlusSquare /> },
+            { type: "heading1", label: "Title", icon: <FaHeading /> },
+            { type: "heading2", label: "Section Heading", icon: <FaHeading /> },
+            { type: "paragraph", label: "Paragraph", icon: <FaParagraph /> },
+            { type: "numbered", label: "Numbered Clause", icon: <FaListOl /> },
+            { type: "label", label: "Static Label", icon: <FaFileAlt /> },
+            { type: "html", label: "Rich Text Block", icon: <FaCode /> },
+            { type: "pagebreak", label: "Page Break", icon: <FaRedo /> },
         ],
     },
+
     {
-        title: "Advanced",
-        items: [{ type: "table", label: "Table", icon: <FaTable /> }],
+        title: "Legal & Structured",
+        items: [
+            { type: "table", label: "Table (Assets / Witness)", icon: <FaTable /> },
+            { type: "calculated", label: "Calculated Field", icon: <FaCalculator /> },
+            { type: "signature", label: "Signature", icon: <FaSignature /> },
+            { type: "image", label: "Image (Stamp / Logo)", icon: <FaImages /> },
+        ],
     },
 ];
 
-// ----------------------------------------------
-// TILE DESIGN — Premium + Three in a row
-// ----------------------------------------------
+/* ----------------------------------------------
+   TILE
+---------------------------------------------- */
 const Tile = ({ item, onAddField }: any) => {
     const { setNodeRef, listeners, attributes } = useDraggable({
         id: `palette:${item.type}`,
@@ -55,7 +70,7 @@ const Tile = ({ item, onAddField }: any) => {
 
     const baseStyle: React.CSSProperties = {
         padding: "10px 12px",
-        borderRadius: "14px",
+        borderRadius: 14,
         cursor: "grab",
         background: "rgba(248, 249, 255, 0.9)",
         transition: "0.25s ease",
@@ -86,24 +101,24 @@ const Tile = ({ item, onAddField }: any) => {
             <span style={{ fontSize: 16, marginRight: 8, color: "#4a68f0" }}>
                 {item.icon}
             </span>
-            <span style={{ fontWeight: 500, color: "#222" }}>{item.label}</span>
+            <span style={{ fontWeight: 500, color: "#222" }}>
+                {item.label}
+            </span>
         </div>
     );
 };
 
-// ----------------------------------------------
-// MAIN PANEL
-// ----------------------------------------------
+/* ----------------------------------------------
+   MAIN PANEL
+---------------------------------------------- */
 const FormBuilderPanel: React.FC<{ onAddField: (type: string) => void }> = ({ onAddField }) => {
     const [search, setSearch] = useState("");
 
     return (
-        <div style={{ padding: "15px" }}>
-
-            {/* Search Bar */}
+        <div style={{ padding: 15 }}>
             <Form.Control
                 size="sm"
-                placeholder="Search..."
+                placeholder="Search fields..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
@@ -115,11 +130,11 @@ const FormBuilderPanel: React.FC<{ onAddField: (type: string) => void }> = ({ on
                 }}
             />
 
-            {categories.map((section) => {
-                const visible = section.items.filter((i) =>
+            {categories.map(section => {
+                const visible = section.items.filter(i =>
                     i.label.toLowerCase().includes(search.toLowerCase())
                 );
-                if (visible.length === 0) return null;
+                if (!visible.length) return null;
 
                 return (
                     <div key={section.title} style={{ marginBottom: 25 }}>
@@ -135,17 +150,19 @@ const FormBuilderPanel: React.FC<{ onAddField: (type: string) => void }> = ({ on
                             {section.title}
                         </div>
 
-                        {/* 3 Column Grid */}
                         <div
-                            className="row g-2"
                             style={{
                                 display: "grid",
                                 gridTemplateColumns: "repeat(3, 1fr)",
-                                gap: "8px",
+                                gap: 8,
                             }}
                         >
-                            {visible.map((item) => (
-                                <Tile key={item.type} item={item} onAddField={onAddField} />
+                            {visible.map(item => (
+                                <Tile
+                                    key={item.type}
+                                    item={item}
+                                    onAddField={onAddField}
+                                />
                             ))}
                         </div>
                     </div>

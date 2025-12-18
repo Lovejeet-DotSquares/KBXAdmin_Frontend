@@ -1,10 +1,9 @@
-/* components/SortableItem.tsx */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import React from "react";
+import React, { useMemo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "react-bootstrap";
 import { FaGripVertical, FaCopy, FaTrash } from "react-icons/fa";
+import { FieldRegistry } from "../rules/fieldRegistry";
 import type { FormField } from "../types/formTypes";
 
 interface Props {
@@ -14,76 +13,127 @@ interface Props {
     onDuplicate: () => void;
 }
 
-const SortableItem: React.FC<Props> = ({ field, onSelect, onDelete, onDuplicate }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-        id: `field:${field.id}`,
-        data: { from: "canvas-item", fieldId: field.id },
-    });
+const SortableItem: React.FC<Props> = ({
+    field,
+    onSelect,
+    onDelete,
+    onDuplicate,
+}) => {
+    const { attributes, listeners, setNodeRef, transform, transition } =
+        useSortable({
+            id: `field:${field.id}`,
+            data: {
+                type: "field",
+                fieldId: field.id,
+            },
+        });
+
+
 
     const style: React.CSSProperties = {
         transform: CSS.Transform.toString(transform),
         transition,
-        opacity: isDragging ? 0.6 : 1,
+        background: "#fff",
+        borderRadius: 8,
+        padding: 10,
+        boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+        cursor: "pointer",
+        marginTop: 5
     };
 
-    const renderPreview = () => {
-        if (field.type === "table") {
-            return (
-                <table className="table table-sm table-bordered mb-0">
-                    <thead>
-                        <tr>{field.columns?.map((c: any) => <th key={c.id}>{c.label}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                        {Array.from({ length: field.rows ?? 2 }).map((_, r) => (
-                            <tr key={r}>
-                                {field.columns?.map((c: any) => <td key={c.id} className="text-muted small">Row</td>)}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            );
+    const cfg = FieldRegistry[field.type];
+    const preview = useMemo(() => {
+        if (!cfg) return null;
+
+        // STATIC / LAYOUT
+        if (cfg.static) {
+            if (field.type.startsWith("heading")) {
+                return <div className="fw-bold">{field.label || "Heading"}</div>;
+            }
+
+            if (field.type === "numbered") {
+                return (
+                    <div className="small text-muted">
+                        1. {field.items?.[0] || "Clause text"}
+                    </div>
+                );
+            }
+
+            return <div className="text-muted small">{field.label || "Text"}</div>;
         }
 
-        if (field.type === "select") {
+        // COMPLEX
+        if (cfg.complex) {
             return (
-                <select className="form-select form-select-sm" disabled>
-                    <option>Select</option>
-                    {field.options?.map((o: any) => <option key={o.id}>{o.label}</option>)}
-                </select>
-            );
-        }
-
-        if (field.type === "heading1") return <h2 className="m-0 fw-bold">{field.label}</h2>;
-        if (field.type === "heading2") return <h4 className="m-0 fw-semibold">{field.label}</h4>;
-        if (field.type === "heading3") return <h6 className="m-0 text-muted">{field.label}</h6>;
-        if (field.type === "subtitle") return <div className="text-muted fst-italic">{field.label}</div>;
-        if (field.type === "numbered") {
-            return (
-                <div className="fw-semibold">
-                    {field.number ?? "1."} {field.label}
+                <div className="border p-2 small text-muted text-center">
+                    {field.type.toUpperCase()}
                 </div>
             );
         }
-        if (field.type === "divider") return <hr className="my-2" />;
 
-        if (field.type === "textarea") return <textarea className="form-control form-control-sm" placeholder={field.placeholder} disabled />;
+        // CHOICE PREVIEWS
+        if (field.type === "select") {
+            return <div className="small text-muted">Dropdown</div>;
+        }
 
-        return <input className="form-control form-control-sm" placeholder={field.placeholder || field.label} disabled />;
-    };
+        if (field.type === "multiselect") {
+            return <div className="small text-muted">Multi Select</div>;
+        }
+
+        if (field.type === "toggle") {
+            return <div className="small text-muted">Toggle (On / Off)</div>;
+        }
+
+        // INPUT
+        return (
+            <div className="small text-muted">
+                {cfg.inputType?.toUpperCase() || "INPUT"}
+            </div>
+        );
+    }, [field, cfg]);
 
     return (
-        <div ref={setNodeRef} style={style} className="border rounded p-2 mb-2 bg-white shadow-sm" onClick={onSelect}>
-            <div className="d-flex justify-content-between align-items-start mb-1">
-                <div className="fw-semibold small">{field.label}</div>
-                <div className="d-flex align-items-center gap-1">
-                    <Button size="sm" variant="outline-secondary" onClick={(e) => { e.stopPropagation(); onDuplicate(); }}><FaCopy /></Button>
-                    <Button size="sm" variant="outline-danger" onClick={(e) => { e.stopPropagation(); onDelete(); }}><FaTrash /></Button>
-                    <span {...attributes} {...listeners} className="ms-1 text-muted" style={{ cursor: "grab" }} onClick={(e) => e.stopPropagation()}>
+        <div ref={setNodeRef} style={style} onClick={onSelect}>
+            <div className="d-flex justify-content-between align-items-center mb-1">
+                <strong className="small">
+                    {field.label || field.type}
+                </strong>
+
+                <div className="d-flex gap-1 align-items-center">
+                    <Button
+                        size="sm"
+                        variant="light"
+                        onClick={e => {
+                            e.stopPropagation();
+                            onDuplicate();
+                        }}
+                    >
+                        <FaCopy />
+                    </Button>
+
+                    <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={e => {
+                            e.stopPropagation();
+                            onDelete();
+                        }}
+                    >
+                        <FaTrash />
+                    </Button>
+
+                    <span
+                        {...attributes}
+                        {...listeners}
+                        className="text-muted"
+                        style={{ cursor: "grab" }}
+                    >
                         <FaGripVertical />
                     </span>
                 </div>
             </div>
-            {renderPreview()}
+
+            {preview}
         </div>
     );
 };

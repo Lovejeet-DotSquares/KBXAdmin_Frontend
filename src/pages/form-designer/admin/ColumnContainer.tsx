@@ -1,106 +1,95 @@
-// components/ColumnContainer.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useMemo } from "react";
+// components/ColumnContainer.tsx
 import { useSortable } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import ResizableColumn from "./ResizableColumn";
 import SortableItem from "./SortableItem";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-interface Props {
-    rowId: string;
-    column: any;
-    rowContainerRef: any;
-    onAddFieldToColumn: (rowId: string, colId: string, field: any) => void;
-    onResizeUnits: (rowId: string, colId: string, deltaUnits: number) => void;
-    setSelectedField: (id: string | null) => void;
-    duplicateField: (id: string) => void;
-    deleteField: (id: string) => void;
-    deleteColumn?: (rowId: string, colId: string) => void;
-}
-
-const ColumnContainer: React.FC<Props> = ({
+const ColumnContainer = ({
     rowId,
     column,
-    rowContainerRef,
-    onResizeUnits,
     setSelectedField,
     duplicateField,
     deleteField,
     deleteColumn,
-}) => {
+}: any) => {
     const {
+        setNodeRef,
         attributes,
         listeners,
-        setNodeRef,
         transform,
         transition,
         isDragging,
-        isSorting,
     } = useSortable({
-        id: `col:${column.id}`,
-        data: { from: "column", colId: column.id, rowId },
+        id: `column:${column.id}`,
+        data: {
+            type: "column",
+            columnId: column.id,
+            rowId,
+        },
     });
+
 
     const { setNodeRef: setDropRef, isOver } = useDroppable({
         id: `drop-col:${column.id}`,
         data: { from: "column-drop", rowId, colId: column.id },
     });
 
-    const style = {
+    const style: React.CSSProperties = {
         transform: CSS.Transform.toString(transform),
         transition,
-        opacity: isDragging ? 0.4 : 1,
-        minWidth: 220,
-        flexGrow: column.width || 1,
-        willChange: "transform",
+        opacity: isDragging ? 0.5 : 1,
+        minWidth: 240,
+        background: "#f8fafc",
+        borderRadius: 12,
+        border: "1px solid #e5e7eb",
+        boxShadow: isDragging
+            ? "0 20px 50px rgba(0,0,0,.2)"
+            : "0 4px 12px rgba(0,0,0,.06)",
     };
 
-    // choose sorting direction for fields
-    const sortStrategy = useMemo(() => {
-        const minColumnWidth = 220;
-        return (column.width * 40) < minColumnWidth ? verticalListSortingStrategy : verticalListSortingStrategy;
-    }, [column.width]);
-
     return (
-        <div
-            ref={setNodeRef}
-            style={style}
-            className={`column-card ${isSorting ? "column-sorting" : ""} ${isDragging ? "column-dragging" : ""}`}
-        >
-            {/* Column Header */}
+        <div ref={setNodeRef} style={style}>
+            {/* HEADER = DRAG HANDLE */}
             <div
                 {...attributes}
                 {...listeners}
-                className="column-header d-flex justify-content-between align-items-center p-1"
+                style={{
+                    cursor: "grab",
+                    padding: "8px 10px",
+                    borderBottom: "1px solid #e5e7eb",
+                    display: "flex",
+                    justifyContent: "space-between",
+                }}
             >
-                <span className="fs-xs">Column</span>
-                <div className="d-flex gap-1">
-                    <button className="btn btn-sm btn-outline-danger" onClick={() => deleteColumn && deleteColumn(rowId, column.id)}>✕</button>
-                </div>
+                <strong className="small">Column</strong>
+                <button
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => deleteColumn?.(rowId, column.id)}
+                >
+                    ✕
+                </button>
             </div>
 
-            {/* Droppable + Resizable Body */}
-            <div ref={setDropRef} className={`p-2 ${isOver ? "drop-over" : ""}`}>
-                <ResizableColumn
-                    rowId={rowId}
-                    colId={column.id}
-                    rowContainerRef={rowContainerRef}
-                    onResizeUnits={onResizeUnits}
-                >
-                    <SortableContext items={(column.fields || []).map((f: any) => `field:${f.id}`)} strategy={sortStrategy}>
-                        {column.fields?.map((field: any) => (
-                            <SortableItem
-                                key={field.id}
-                                field={field}
-                                onSelect={() => setSelectedField(field.id)}
-                                onDelete={() => deleteField(field.id)}
-                                onDuplicate={() => duplicateField(field.id)}
-                            />
-                        ))}
-                    </SortableContext>
-                </ResizableColumn>
+            {/* FIELD DROP ZONE */}
+            <div
+                ref={setDropRef}
+                style={{
+                    padding: 10,
+                    minHeight: 60,
+                    background: isOver ? "rgba(99,102,241,.08)" : "transparent",
+                    borderRadius: 10,
+                }}
+            >
+                {column.fields.map((field: any) => (
+                    <SortableItem
+                        key={field.id}
+                        field={field}
+                        onSelect={() => setSelectedField(field.id)}
+                        onDelete={() => deleteField(field.id)}
+                        onDuplicate={() => duplicateField(field.id)}
+                    />
+                ))}
             </div>
         </div>
     );

@@ -327,11 +327,11 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
       prev.map((r) => {
         if (r.id !== rowId) return r;
 
-        const arr = [...r.columns];
-        const [col] = arr.splice(from, 1);
-        arr.splice(to, 0, col);
+        const cols = [...r.columns];
+        const [moved] = cols.splice(from, 1);
+        cols.splice(to, 0, moved);
 
-        return { ...r, columns: arr };
+        return { ...r, columns: cols };
       })
     );
   };

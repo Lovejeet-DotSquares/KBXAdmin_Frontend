@@ -1,330 +1,337 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React from "react";
+import React, { useRef } from "react";
 import { useForm } from "react-hook-form";
+import SignatureCanvas from "react-signature-canvas";
 import type { DesignerRow } from "../hooks/useGridDesigner";
 import type { FormField } from "../types/formTypes";
+import { FieldRegistry } from "../rules/fieldRegistry";
+import CustomMultiSelect from "../../../components/common/CustomMultiSelect";
 
-interface Props {
-    rows: DesignerRow[];
-}
+/* =====================================================
+   HELPERS
+===================================================== */
 
-const FormRunner: React.FC<Props> = ({ rows }) => {
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm();
+const numberToWords = (n?: number) =>
+    typeof n === "number"
+        ? new Intl.NumberFormat("en-IN").format(n)
+        : "";
 
-    const onSubmit = (data: any) => {
-        console.log("Submitted", data);
-        alert("Form submitted. See console.");
+const toRoman = (num: number): string => {
+    const romans: [number, string][] = [
+        [1000, "M"], [900, "CM"], [500, "D"], [400, "CD"],
+        [100, "C"], [90, "XC"], [50, "L"], [40, "XL"],
+        [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]
+    ];
+    let result = "";
+    for (const [v, s] of romans) {
+        while (num >= v) {
+            result += s;
+            num -= v;
+        }
+    }
+    return result;
+};
+
+const alpha = (n: number) =>
+    String.fromCharCode(64 + n);
+
+/**
+ * Hierarchy numbering based on indentation
+ * 2 spaces = next level
+ */
+const computeHierarchy = (items: string[]) => {
+    const counters: number[] = [];
+
+    return items.map(raw => {
+        const indentMatch = raw.match(/^(\s*)/);
+        const level = Math.floor((indentMatch?.[1].length || 0) / 2);
+
+        counters[level] = (counters[level] || 0) + 1;
+        counters.length = level + 1;
+
+        return {
+            level,
+            prefix: counters.join("."),
+            text: raw.trim(),
+        };
+    });
+};
+
+/* =====================================================
+   COMPONENT
+===================================================== */
+
+const FormRunner: React.FC<{ rows: DesignerRow[] }> = ({ rows }) => {
+    const { register, handleSubmit, watch } = useForm();
+    const sigRefs = useRef<Record<string, SignatureCanvas | null>>({});
+
+    /* =====================================================
+       STATIC FIELDS
+    ===================================================== */
+    const renderStatic = (field: FormField) => {
+        switch (field.type) {
+            case "heading1":
+                return <h1>{field.label}</h1>;
+
+            case "heading2":
+                return <h2>{field.label}</h2>;
+
+            case "heading3":
+                return <h3>{field.label}</h3>;
+
+            case "numbered":
+                if (!field.items?.length) return null;
+
+                // ----- HIERARCHY -----
+                if (field.listStyle === "hierarchy") {
+                    const tree = computeHierarchy(field.items);
+
+                    return (
+                        <div>
+                            {tree.map((n, idx) => (
+                                <div
+                                    key={idx}
+                                    style={{
+                                        marginLeft: n.level * 16,
+                                        display: "flex",
+                                        gap: 8,
+                                        marginBottom: 4,
+                                    }}
+                                >
+                                    <strong>{n.prefix}.</strong>
+                                    <span>{n.text}</span>
+                                </div>
+                            ))}
+                        </div>
+                    );
+                }
+
+                // ----- FLAT LIST -----
+                return (
+                    <div>
+                        {field.items.map((item, idx) => {
+                            let prefix: string;
+
+                            switch (field.listStyle) {
+                                case "roman":
+                                    prefix = toRoman(idx + 1);
+                                    break;
+
+                                case "alphabetic":
+                                    prefix = alpha(idx + 1);
+                                    break;
+
+                                case "numeric":
+                                default:
+                                    prefix = String(idx + 1);
+                            }
+
+                            return (
+                                <div
+                                    key={idx}
+                                    style={{
+                                        display: "flex",
+                                        gap: 8,
+                                        marginBottom: 4,
+                                    }}
+                                >
+                                    <strong>{prefix}.</strong>
+                                    <span>{item}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                );
+
+            case "paragraph":
+            case "label":
+            default:
+                return <p>{field.label}</p>;
+        }
     };
 
-    /* ---------------- FIELD RENDERER ---------------- */
+    /* =====================================================
+       INPUT FIELDS
+    ===================================================== */
+    const renderInput = (field: FormField) => {
+        const cfg = FieldRegistry[field.type];
+        if (!cfg || !field.key) return null;
 
-    const renderField = (field: FormField) => {
-        const error = (errors as any)[field.key]?.message;
-
-        /* ---------- STATIC / LAYOUT ---------- */
-
-        if (field.type === "heading1") {
-            return <h4 className="fw-bold mb-2">{field.label}</h4>;
-        }
-
-        if (field.type === "subtitle") {
-            return <h6 className="text-muted mb-2">{field.label}</h6>;
-        }
-
-        if (field.type === "label") {
-            return <div className="fw-semibold small">{field.label}</div>;
-        }
-
-        if (field.type === "static") {
-            return <div className="text-muted small">{field.label}</div>;
-        }
-
-        if (field.type === "divider") {
-            return <hr className="my-3" />;
-        }
-
-        if (field.type === "numbered") {
-            return (
-                <ol className="small ps-3">
-                    {(field.items ?? []).map((i: any, idx: number) => (
-                        <li key={idx}>{i}</li>
-                    ))}
-                </ol>
-            );
-        }
-
-        if (field.type === "image") {
-            return (
-                <div className="border rounded p-3 text-center text-muted small">
-                    Image placeholder
-                </div>
-            );
-        }
-
-        if (field.type === "button") {
-            return (
-                <button type="button" className="btn btn-primary btn-sm">
-                    {field.label}
-                </button>
-            );
-        }
-
-        /* ---------- TABLE ---------- */
-
-        if (field.type === "table") {
-            return (
-                <div className="table-responsive">
-                    <table className="table table-sm table-bordered">
-                        <thead>
-                            <tr>
-                                {field.columns?.map((c: any) => (
-                                    <th key={c.id}>{c.label}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {(field.rowsData ?? []).map((r: any) => (
-                                <tr key={r.id}>
-                                    {field.columns?.map((c: any) => (
-                                        <td key={c.id}>
-                                            <input
-                                                {...register(
-                                                    `${field.key}.${r.id}.${c.id}`
-                                                )}
-                                                className="form-control form-control-sm"
-                                            />
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            );
-        }
-
-        /* ---------- INPUT FIELDS ---------- */
-
-        const common = register(field.key, {
-            required: field.required
-                ? "This field is required"
-                : false,
-        });
+        const common = register(field.key, { required: field.required });
 
         switch (field.type) {
-            case "textarea":
+            case "select":
                 return (
-                    <>
-                        <textarea
+                    <select {...common} className="form-select">
+                        <option value="">Select</option>
+                        {field.options?.map(o => (
+                            <option key={o.value} value={o.value}>
+                                {o.label}
+                            </option>
+                        ))}
+                    </select>
+                );
+
+            case "multiselect": {
+                // eslint-disable-next-line react-hooks/incompatible-library
+                const selected = watch(field.key) || [];
+
+                return (
+                    <CustomMultiSelect
+                        options={field.options || []}
+                        value={selected}
+                        onChange={(val: any) => {
+                            // react-hook-form manual update
+                            (common as any).onChange({
+                                target: { value: val }
+                            });
+                        }}
+                        placeholder={field.placeholder || "Select options"}
+                    />
+                );
+            }
+
+
+            case "toggle":
+                return (
+                    <div className="form-check form-switch">
+                        <input
                             {...common}
-                            className={`form-control form-control-sm ${error ? "is-invalid" : ""
-                                }`}
-                            placeholder={field.placeholder}
+                            type="checkbox"
+                            className="form-check-input"
                         />
-                        {error && (
-                            <div className="invalid-feedback">{error}</div>
-                        )}
-                    </>
+                        <label className="form-check-label">
+                            {field.label}
+                        </label>
+                    </div>
+                );
+
+            case "radio":
+            case "yesno":
+                return (
+                    <div>
+                        {field.options?.map(o => (
+                            <div key={o.value} className="form-check">
+                                <input
+                                    {...common}
+                                    type="radio"
+                                    value={o.value}
+                                    className="form-check-input"
+                                />
+                                <label className="form-check-label">
+                                    {o.label}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                );
+
+            case "checkbox":
+                return (
+                    <div>
+                        {field.options?.map(o => (
+                            <div key={o.value} className="form-check">
+                                <input
+                                    type="checkbox"
+                                    value={o.value}
+                                    className="form-check-input"
+                                    {...register(`${field.key}.${o.value}`)}
+                                />
+                                <label className="form-check-label">
+                                    {o.label}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
                 );
 
             case "number":
+            case "currency": {
+                const watchedValue = watch(field.key);
                 return (
                     <>
                         <input
                             {...common}
                             type="number"
-                            className={`form-control form-control-sm ${error ? "is-invalid" : ""
-                                }`}
-                            placeholder={field.placeholder}
+                            min={field.min}
+                            max={field.max}
+                            className="form-control"
                         />
-                        {error && (
-                            <div className="invalid-feedback">{error}</div>
+                        {field.variant === "filled" && (
+                            <small className="text-muted">
+                                {numberToWords(watchedValue)}
+                            </small>
                         )}
                     </>
                 );
-
-            case "select":
-                return (
-                    <>
-                        <select
-                            {...common}
-                            className={`form-select form-select-sm ${error ? "is-invalid" : ""
-                                }`}
-                        >
-                            <option value="">Select...</option>
-                            {field.options?.map((o) => (
-                                <option key={o.id} value={o.value}>
-                                    {o.label}
-                                </option>
-                            ))}
-                        </select>
-                        {error && (
-                            <div className="invalid-feedback">{error}</div>
-                        )}
-                    </>
-                );
-
-            case "radio":
-                return (
-                    <>
-                        {field.options?.map((o) => (
-                            <div className="form-check" key={o.id}>
-                                <input
-                                    {...register(field.key)}
-                                    className="form-check-input"
-                                    type="radio"
-                                    value={o.value}
-                                />
-                                <label className="form-check-label small">
-                                    {o.label}
-                                </label>
-                            </div>
-                        ))}
-                        {error && (
-                            <div className="invalid-feedback d-block">
-                                {error}
-                            </div>
-                        )}
-                    </>
-                );
-
-            case "checkbox":
-                return (
-                    <>
-                        {field.options?.map((o) => (
-                            <div className="form-check" key={o.id}>
-                                <input
-                                    {...register(field.key)}
-                                    className="form-check-input"
-                                    type="checkbox"
-                                    value={o.value}
-                                />
-                                <label className="form-check-label small">
-                                    {o.label}
-                                </label>
-                            </div>
-                        ))}
-                    </>
-                );
-
-            case "yesno":
-                return (
-                    <div>
-                        <div className="form-check form-check-inline">
-                            <input
-                                {...register(field.key)}
-                                className="form-check-input"
-                                type="radio"
-                                value="yes"
-                            />
-                            <label className="form-check-label small">
-                                Yes
-                            </label>
-                        </div>
-                        <div className="form-check form-check-inline">
-                            <input
-                                {...register(field.key)}
-                                className="form-check-input"
-                                type="radio"
-                                value="no"
-                            />
-                            <label className="form-check-label small">
-                                No
-                            </label>
-                        </div>
-                    </div>
-                );
-
-            case "date":
-                return (
-                    <input
-                        {...common}
-                        type="date"
-                        className={`form-control form-control-sm ${error ? "is-invalid" : ""
-                            }`}
-                    />
-                );
+            }
 
             case "file":
+                return <input {...common} type="file" className="form-control" />;
+
+            case "signature":
                 return (
-                    <input
-                        {...common}
-                        type="file"
-                        className={`form-control form-control-sm ${error ? "is-invalid" : ""
-                            }`}
+                    <SignatureCanvas
+                        ref={r => { (sigRefs.current[field.id] = r) }}
+                        penColor="black"
+                        canvasProps={{ className: "border w-100", height: 150 }}
                     />
                 );
 
             default:
                 return (
-                    <>
-                        <input
-                            {...common}
-                            className={`form-control form-control-sm ${error ? "is-invalid" : ""
-                                }`}
-                            placeholder={field.placeholder}
-                        />
-                        {error && (
-                            <div className="invalid-feedback">{error}</div>
-                        )}
-                    </>
+                    <input
+                        {...common}
+                        type={cfg.inputType || "text"}
+                        placeholder={field.placeholder}
+                        className="form-control"
+                    />
                 );
         }
     };
 
-    /* ---------------- RENDER ---------------- */
-
+    /* =====================================================
+       RENDER
+    ===================================================== */
     return (
-        <form onSubmit={handleSubmit(onSubmit)}>
-            {rows.map((row) => (
-                <div key={row.id} className="mb-4">
-                    <div className="row g-3">
-                        {row.columns.map((col) => (
-                            <div
-                                key={col.id}
-                                className={`col-${col.width}`}
-                            >
-                                {col.fields.map((f) => (
-                                    <div key={f.id} className="mb-3">
-                                        {![
-                                            "heading1",
-                                            "subtitle",
-                                            "label",
-                                            "static",
-                                            "divider",
-                                            "image",
-                                            "button",
-                                        ].includes(f.type) && (
-                                                <label className="form-label small fw-semibold">
-                                                    {f.label}
-                                                    {f.required && (
-                                                        <span className="text-danger ms-1">
-                                                            *
-                                                        </span>
-                                                    )}
-                                                </label>
-                                            )}
-                                        {renderField(f)}
-                                    </div>
-                                ))}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ))}
+        <form onSubmit={handleSubmit(console.log)}>
+            {rows.map(row =>
+                row.columns.map(col =>
+                    col.fields.map(field => {
+                        const cfg = FieldRegistry[field.type];
+                        if (!cfg) return null;
 
-            {rows.length > 0 && (
-                <button
-                    type="submit"
-                    className="btn btn-success btn-sm"
-                >
-                    Submit
-                </button>
+                        return (
+                            <div key={field.id} className="mb-3">
+                                {!cfg.static && field.label && (
+                                    <label className="form-label">
+                                        {field.label}
+                                    </label>
+                                )}
+
+                                {cfg.static
+                                    ? renderStatic(field)
+                                    : cfg.complex && field.type !== "signature"
+                                        ? (
+                                            <div className="border p-3 text-muted">
+                                                {field.type.toUpperCase()} COMPONENT
+                                            </div>
+                                        )
+                                        : renderInput(field)
+                                }
+
+                                {field.helperText && (
+                                    <div className="form-text">
+                                        {field.helperText}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })
+                )
             )}
+
+            <button className="btn btn-success">Submit</button>
         </form>
     );
 };

@@ -19,7 +19,6 @@ class ApiUtility {
     this.client = axios.create({
       baseURL: import.meta.env.VITE_API_URL, // <-- Use your API base URL
       timeout: 10000,
-      withCredentials: true,
     });
 
     // Automatically attach JWT token
@@ -87,7 +86,10 @@ class ApiUtility {
   // -----------------------------
   // POST FORM DATA
   // -----------------------------
-  postForm = async <T>(url: string, payload: Record<string, any>): Promise<IApiResponse<T>> => {
+  postForm = async <T>(
+    url: string,
+    payload: Record<string, any>
+  ): Promise<IApiResponse<T>> => {
     const formData = new FormData();
     Object.entries(payload).forEach(([key, value]) => {
       formData.append(key, value as any);

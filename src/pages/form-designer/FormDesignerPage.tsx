@@ -302,35 +302,83 @@ const FormDesignerPage: React.FC = () => {
                         />
                     </Col>
 
-                    <Col md={6} className="bg-light p-3 overflow-auto">
-                        {!showPreview ? (
-                            <SortableContext
-                                items={rows.map((r) => `row:${r.id}`)}
-                                strategy={verticalListSortingStrategy}
-                            >
-                                {rows.map((r, i) => (
-                                    <RowContainer
-                                        key={r.id}
-                                        row={r}
-                                        index={i}
-                                        onAddColumn={addColumn}
-                                        onAddRowBelow={addRowBelow}
-                                        onResize={resizeColumnUnits}
-                                        duplicateField={duplicateField}
-                                        deleteField={deleteField}
-                                        deleteRow={removeRow}
-                                        deleteColumn={removeColumn}
-                                        setSelectedField={setSelectedField}
-                                        selectedFieldId={selectedFieldId}
-                                    />
-                                ))}
-                            </SortableContext>
-                        ) : (
-                            <Card className="p-4">
-                                <FormRunner rows={rows} />
-                            </Card>
-                        )}
+                    <Col
+                        md={6}
+                        className="bg-light p-0 d-flex flex-column border-start"
+                        style={{ minHeight: "100vh" }}
+                    >
+                        {/* ---------- CANVAS HEADER ---------- */}
+                        <div className="d-flex justify-content-between align-items-center px-3 py-2 bg-white border-bottom">
+                            <span className="fw-semibold small text-uppercase text-muted">
+                                {showPreview ? "Form Preview" : "Form Builder"}
+                            </span>
+
+                            {!showPreview && rows.length === 0 && (
+                                <button
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() => addRow()}
+                                >
+                                    + Add Row
+                                </button>
+                            )}
+                        </div>
+
+                        {/* ---------- CANVAS BODY ---------- */}
+                        <div className="flex-grow-1 overflow-auto p-3">
+                            {!showPreview ? (
+                                rows.length === 0 ? (
+                                    /* ---------- EMPTY STATE ---------- */
+                                    <div className="h-100 d-flex flex-column justify-content-center align-items-center text-muted">
+                                        <div className="fs-6 fw-semibold mb-2">
+                                            Start building your form
+                                        </div>
+                                        <p className="small mb-3 text-center" style={{ maxWidth: 260 }}>
+                                            Add rows and fields to design your form layout.
+                                        </p>
+                                        <button
+                                            className="btn btn-primary btn-sm"
+                                            onClick={() => addRow()}
+                                        >
+                                            + Add First Row
+                                        </button>
+                                    </div>
+                                ) : (
+                                    /* ---------- BUILDER ---------- */
+                                    <SortableContext
+                                        items={rows.map((r) => `row:${r.id}`)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        <div className="d-flex flex-column gap-3">
+                                            {rows.map((r, i) => (
+                                                <RowContainer
+                                                    key={r.id}
+                                                    row={r}
+                                                    index={i}
+                                                    onAddColumn={addColumn}
+                                                    onAddRowBelow={addRowBelow}
+                                                    onResize={resizeColumnUnits}
+                                                    duplicateField={duplicateField}
+                                                    deleteField={deleteField}
+                                                    deleteRow={removeRow}
+                                                    deleteColumn={removeColumn}
+                                                    setSelectedField={setSelectedField}
+                                                    selectedFieldId={selectedFieldId}
+                                                />
+                                            ))}
+                                        </div>
+                                    </SortableContext>
+                                )
+                            ) : (
+                                /* ---------- PREVIEW ---------- */
+                                <Card className="shadow-sm border-0">
+                                    <Card.Body className="p-4">
+                                        <FormRunner rows={rows} />
+                                    </Card.Body>
+                                </Card>
+                            )}
+                        </div>
                     </Col>
+
 
                     <Col md={3} className="border-start bg-white d-flex flex-column">
                         <Nav

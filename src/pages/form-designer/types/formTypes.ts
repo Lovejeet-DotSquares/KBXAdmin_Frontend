@@ -1,60 +1,48 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// ------------------------------------
-// FIELD TYPE
-// ------------------------------------
+/* ------------------------------------
+ * FIELD TYPE
+ * ------------------------------------ */
 export type FieldType =
+  /* -------- INPUT -------- */
   | "text"
   | "textarea"
   | "number"
   | "email"
-  | "password"
   | "phone"
-  | "url"
-  | "currency"
   | "hidden"
-  | "autocomplete"
+  | "date"
+  /* -------- CHOICE -------- */
   | "select"
   | "multiselect"
-  | "checkbox"
   | "radio"
+  | "checkbox"
   | "toggle"
   | "yesno"
-  | "rating"
-  | "slider"
-  | "date"
-  | "time"
-  | "color"
+
+  /* -------- MEDIA -------- */
   | "file"
-  | "signature"
   | "image"
+  | "signature"
+
+  /* -------- STATIC CONTENT -------- */
   | "label"
   | "paragraph"
-  | "richtext"
-  | "html"
-  | "button"
-  | "divider"
-  | "spacer"
-  | "pagebreak"
-  | "alert"
+
+  /* -------- LAYOUT -------- */
   | "heading1"
   | "heading2"
   | "heading3"
-  | "subtitle"
   | "numbered"
-  | "table"
-  | "address"
-  | "repeater"
-  | "calculated"
-  | "conditional"
-  | "captcha"
-  | "map"
-  | "qrcode"
-  | "barcode";
+  | "pagebreak"
 
-// ------------------------------------
-// OPTION
-// ------------------------------------
+  /* -------- ADVANCED -------- */
+  | "table"
+  | "calculated";
+
+/* ------------------------------------
+ * OPTION
+ * ------------------------------------ */
 export interface FieldOption {
   id: string;
   label: string;
@@ -62,14 +50,19 @@ export interface FieldOption {
   disabled?: boolean;
 }
 
-// ------------------------------------
-// VALIDATION
-// ------------------------------------
+/* ------------------------------------
+ * VALIDATION RULES
+ * ------------------------------------ */
 export type ValidationRule =
   | { type: "required"; message?: string }
   | { type: "min"; value: number; message?: string }
   | { type: "max"; value: number; message?: string }
-  | { type: "length"; min?: number; max?: number; message?: string }
+  | {
+      type: "length";
+      min?: number;
+      max?: number;
+      message?: string;
+    }
   | { type: "pattern"; regex: string; message?: string }
   | {
       type: "format";
@@ -77,9 +70,9 @@ export type ValidationRule =
       message?: string;
     };
 
-// ------------------------------------
-// VISIBILITY RULES
-// ------------------------------------
+/* ------------------------------------
+ * VISIBILITY / STATE RULES
+ * ------------------------------------ */
 export type VisibilityOperator =
   | "equals"
   | "not_equals"
@@ -100,46 +93,100 @@ export interface VisibilityGroup {
   id: string;
   logic: "AND" | "OR";
   conditions: VisibilityCondition[];
+
+  /** What to do when condition matches */
   action: "show" | "hide" | "enable" | "disable";
 }
 
-// ------------------------------------
-// FORM FIELD
-// ------------------------------------
+/* ------------------------------------
+ * ACTION / WORKFLOW
+ * ------------------------------------ */
+export interface FieldAction {
+  triggerClause?: boolean; // insert legal clause
+  actionFlowId?: string; // workflow / automation id
+  emitEvent?: string; // event name for engine
+}
+
+/* ------------------------------------
+ * TABLE CONFIG
+ * ------------------------------------ */
+export interface TableColumn {
+  id: string;
+  label: string;
+  key: string;
+  type?: FieldType;
+}
+
+export interface TableConfig {
+  columns: TableColumn[];
+  allowAddRow?: boolean;
+  allowDeleteRow?: boolean;
+  minRows?: number;
+  maxRows?: number;
+}
+
+/* ------------------------------------
+ * FORM FIELD (CORE)
+ * ------------------------------------ */
 export interface FormField {
   id: string;
   type: FieldType;
 
+  /* Identity */
   key?: string;
   label?: string;
-
   placeholder?: string;
   helperText?: string;
+
+  /* Defaults */
   defaultValue?: any;
 
+  /* State */
   required?: boolean;
   disabled?: boolean;
   readonly?: boolean;
+  hidden?: boolean;
 
+  /* Formatting */
   format?: "none" | "email" | "phone" | "numeric" | "url";
   variant?: "standard" | "outlined" | "filled";
 
+  /* Options */
   options?: FieldOption[];
 
+  /* Numeric / Range */
   min?: number;
   max?: number;
   step?: number;
 
+  /* List / Content */
   items?: string[];
   listStyle?: "numeric" | "roman" | "alphabetic" | "hierarchy";
 
+  /* Validation */
   validationRules?: ValidationRule[];
+
+  /* Visibility & State Logic */
   visibilityConditions?: VisibilityGroup[];
+
+  /* Actions & Workflows */
+  actions?: FieldAction;
+
+  /* Table */
+  tableConfig?: TableConfig;
+
+  /* Calculated */
+  formula?: string;
+  dependencies?: string[];
+  accept?: any;
+  multiple?: any;
+  optionsMode?: "master" | "manual";
+  masterOptionsKey?: "yesno" | "boolean";
 }
 
-// ------------------------------------
-// FORM META
-// ------------------------------------
+/* ------------------------------------
+ * FORM META
+ * ------------------------------------ */
 export interface FormSummary {
   id: string;
   title: string;

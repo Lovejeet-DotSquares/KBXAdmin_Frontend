@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { FieldOption } from "../../pages/form-designer/types/formTypes";
 
 interface Props {
@@ -6,6 +6,7 @@ interface Props {
     value?: string[];
     onChange: (val: string[]) => void;
     placeholder?: string;
+    disabled?: boolean;
 }
 
 const CustomMultiSelect: React.FC<Props> = ({
@@ -13,10 +14,14 @@ const CustomMultiSelect: React.FC<Props> = ({
     value = [],
     onChange,
     placeholder = "Select options",
+    disabled = false,
 }) => {
     const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
 
     const toggleValue = (val: string) => {
+        if (disabled) return;
+
         if (value.includes(val)) {
             onChange(value.filter(v => v !== val));
         } else {
@@ -24,20 +29,33 @@ const CustomMultiSelect: React.FC<Props> = ({
         }
     };
 
+    /* ---------- CLOSE ON OUTSIDE CLICK ---------- */
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) {
+                setOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
     return (
-        <div style={{ position: "relative" }}>
+        <div ref={ref} style={{ position: "relative" }}>
             {/* INPUT */}
             <div
                 className="form-control"
                 style={{
-                    cursor: "pointer",
+                    cursor: disabled ? "not-allowed" : "pointer",
                     minHeight: 38,
                     display: "flex",
                     alignItems: "center",
                     flexWrap: "wrap",
                     gap: 6,
+                    background: disabled ? "#f8f9fa" : "#fff",
+                    opacity: disabled ? 0.6 : 1,
                 }}
-                onClick={() => setOpen(o => !o)}
+                onClick={() => !disabled && setOpen(o => !o)}
             >
                 {value.length === 0 && (
                     <span className="text-muted">{placeholder}</span>
@@ -63,7 +81,7 @@ const CustomMultiSelect: React.FC<Props> = ({
             </div>
 
             {/* DROPDOWN */}
-            {open && (
+            {open && !disabled && (
                 <div
                     style={{
                         position: "absolute",
@@ -77,6 +95,7 @@ const CustomMultiSelect: React.FC<Props> = ({
                         overflowY: "auto",
                         boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
                     }}
+                    onClick={(e) => e.stopPropagation()}
                 >
                     {options.map(opt => (
                         <label
@@ -86,13 +105,15 @@ const CustomMultiSelect: React.FC<Props> = ({
                                 alignItems: "center",
                                 gap: 8,
                                 padding: "8px 10px",
-                                cursor: "pointer",
+                                cursor: opt.disabled ? "not-allowed" : "pointer",
                                 fontSize: 13,
+                                opacity: opt.disabled ? 0.5 : 1,
                             }}
                         >
                             <input
                                 type="checkbox"
                                 checked={value.includes(opt.value)}
+                                disabled={opt.disabled}
                                 onChange={() => toggleValue(opt.value)}
                             />
                             {opt.label}

@@ -1,6 +1,17 @@
 import React from "react";
-import type { FormField } from "../types/formTypes";
+import type {
+    FormField,
+    ValidationRule,
+    VisibilityGroup,
+    FieldOption,
+} from "../types/formTypes";
 import { FieldRegistry } from "../rules/fieldRegistry";
+
+declare global {
+    interface Window {
+        __FORM_KEYS__?: Set<string>;
+    }
+}
 
 interface Props {
     field: FormField | null;
@@ -19,10 +30,58 @@ const FieldPropertiesPanel: React.FC<Props> = ({
 
     const cfg = FieldRegistry[field.type];
 
+    /* ---------------- VALIDATION HELPERS ---------------- */
+
+    const updateValidationRule = (rule: ValidationRule) => {
+        const others = field.validationRules?.filter(
+            (r) => r.type !== rule.type
+        );
+        onChange({
+            validationRules: [...(others || []), rule],
+        });
+    };
+
+    const removeValidationRule = (type: ValidationRule["type"]) => {
+        onChange({
+            validationRules: field.validationRules?.filter((r) => r.type !== type),
+        });
+    };
+    const isKeyUnique = (key: string) => {
+        return !window.__FORM_KEYS__?.has(key);
+    };
+
+    /* ---------------- OPTIONS HELPERS ---------------- */
+
+    const updateOption = (idx: number, patch: Partial<FieldOption>) => {
+        const options = [...(field.options || [])];
+        options[idx] = { ...options[idx], ...patch };
+        onChange({ options });
+    };
+
+    const addOption = () => {
+        onChange({
+            options: [
+                ...(field.options || []),
+                {
+                    id: crypto.randomUUID(),
+                    label: "Option",
+                    value: `option_${(field.options?.length || 0) + 1}`,
+                },
+            ],
+        });
+    };
+
+    const removeOption = (idx: number) => {
+        const options = [...(field.options || [])];
+        options.splice(idx, 1);
+        onChange({ options });
+    };
+
     return (
         <div className="p-3 small">
             <h6 className="mb-3">Field Properties</h6>
 
+            {/* ---------- LABEL ---------- */}
             <label className="form-label">Label</label>
             <input
                 className="form-control form-control-sm mb-2"
@@ -31,32 +90,332 @@ const FieldPropertiesPanel: React.FC<Props> = ({
                 onChange={(e) => onChange({ label: e.target.value })}
             />
 
+            {/* ---------- HELP TEXT ---------- */}
+            <label className="form-label">Help / Description</label>
+            <textarea
+                className="form-control form-control-sm mb-2"
+                value={field.helperText || ""}
+                disabled={readOnly}
+                onChange={(e) => onChange({ helperText: e.target.value })}
+                placeholder="Enter legal name as per ID"
+            />
+
             {cfg?.hasKey && (
                 <>
-                    <label className="form-label">Key</label>
+                    <label className="form-label">Field Key</label>
                     <input
-                        className="form-control form-control-sm mb-2"
+                        className={`form-control form-control-sm mb-2 ${field.key && !isKeyUnique(field.key) ? "is-invalid" : ""
+                            }`}
                         value={field.key || ""}
                         disabled={readOnly}
-                        onChange={(e) => onChange({ key: e.target.value })}
+                        onChange={(e) => {
+                            const val = e.target.value.replace(/\s+/g, "_").toLowerCase();
+                            if (isKeyUnique(val)) {
+                                onChange({ key: val });
+                            }
+                        }}
+                    />
+                    {!isKeyUnique(field.key || "") && (
+                        <div className="invalid-feedback">
+                            Key must be unique across the form
+                        </div>
+                    )}
+                </>
+            )}
+
+
+            {/* ---------- DEFAULT VALUE ---------- */}
+            {cfg?.hasDefault && (
+                <>
+                    <label className="form-label">Default Value</label>
+                    <input
+                        className="form-control form-control-sm mb-2"
+                        value={field.defaultValue ?? ""}
+                        disabled={readOnly}
+                        onChange={(e) => onChange({ defaultValue: e.target.value })}
                     />
                 </>
             )}
 
-            {cfg?.hasValidation && (
-                <div className="form-check mt-3">
-                    <input
-                        type="checkbox"
-                        className="form-check-input"
-                        checked={!!field.required}
+            {/* ---------- STATE ---------- */}
+            <div className="form-check mt-2">
+                <input
+                    type="checkbox"
+                    className="form-check-input"
+                    checked={!!field.disabled}
+                    disabled={readOnly}
+                    onChange={(e) => onChange({ disabled: e.target.checked })}
+                />
+                <label className="form-check-label">Disabled</label>
+            </div>
+
+            <div className="form-check mt-1">
+                <input
+                    type="checkbox"
+                    className="form-check-input"
+                    checked={!!field.readonly}
+                    disabled={readOnly}
+                    onChange={(e) => onChange({ readonly: e.target.checked })}
+                />
+                <label className="form-check-label">Read Only</label>
+            </div>
+
+            {/* ---------- OPTIONS (SELECT / YESNO / MULTI) ---------- */}
+            {/* ---------- OPTIONS ---------- */}
+            {cfg?.hasOptions && (
+                <>
+                    <hr className="my-3" />
+                    <h6 className="small fw-bold">Options</h6>
+
+                    {/* ---- OPTIONS MODE ---- */}
+                    <select
+                        className="form-control form-control-sm mb-2"
+                        value={field.optionsMode || "manual"}
                         disabled={readOnly}
-                        onChange={(e) =>
-                            onChange({ required: e.target.checked })
-                        }
-                    />
-                    <label className="form-check-label">Required</label>
-                </div>
+                        onChange={(e) => {
+                            const mode = e.target.value as "manual" | "master";
+
+                            if (mode === "master") {
+                                // predefined sets
+                                if (field.type === "yesno") {
+                                    onChange({
+                                        optionsMode: "master",
+                                        masterOptionsKey: "yesno",
+                                        options: [
+                                            { id: "yes", label: "Yes", value: "yes" },
+                                            { id: "no", label: "No", value: "no" },
+                                        ],
+                                    });
+                                }
+                            } else {
+                                onChange({
+                                    optionsMode: "manual",
+                                });
+                            }
+                        }}
+                    >
+                        <option value="manual">Manual Options</option>
+                        <option value="master">Use System Options</option>
+                    </select>
+
+                    {/* ---- MANUAL OPTIONS ---- */}
+                    {(field.optionsMode !== "master") && (
+                        <>
+                            {(field.options || []).map((opt, idx) => (
+                                <div key={opt.id} className="d-flex gap-1 mb-2">
+                                    <input
+                                        className="form-control form-control-sm"
+                                        placeholder="Label"
+                                        value={opt.label}
+                                        disabled={readOnly}
+                                        onChange={(e) =>
+                                            updateOption(idx, { label: e.target.value })
+                                        }
+                                    />
+                                    <input
+                                        className="form-control form-control-sm"
+                                        placeholder="Value"
+                                        value={opt.value}
+                                        disabled={readOnly}
+                                        onChange={(e) =>
+                                            updateOption(idx, { value: e.target.value })
+                                        }
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-outline-danger"
+                                        disabled={readOnly}
+                                        onClick={() => removeOption(idx)}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-outline-primary w-100"
+                                disabled={readOnly}
+                                onClick={addOption}
+                            >
+                                + Add Option
+                            </button>
+                        </>
+                    )}
+
+                    {/* ---- MASTER OPTIONS INFO ---- */}
+                    {field.optionsMode === "master" && (
+                        <div className="text-muted small mt-2">
+                            Using system-defined options. Editing is disabled.
+                        </div>
+                    )}
+                </>
             )}
+
+
+            {/* ---------- FILE SUPPORT ---------- */}
+            {field.type === "file" && (
+                <>
+                    <hr className="my-3" />
+                    <h6 className="small fw-bold">File Settings</h6>
+
+                    <input
+                        className="form-control form-control-sm mb-2"
+                        placeholder="Accepted types (e.g. image/*,.pdf)"
+                        value={field.accept || ""}
+                        disabled={readOnly}
+                        onChange={(e) => onChange({ accept: e.target.value })}
+                    />
+
+                    <div className="form-check">
+                        <input
+                            type="checkbox"
+                            className="form-check-input"
+                            checked={!!field.multiple}
+                            disabled={readOnly}
+                            onChange={(e) => onChange({ multiple: e.target.checked })}
+                        />
+                        <label className="form-check-label">Allow Multiple Files</label>
+                    </div>
+                </>
+            )}
+
+            {/* ---------- VALIDATIONS ---------- */}
+            {cfg?.hasValidation && (
+                <>
+                    <hr className="my-3" />
+                    <h6 className="small fw-bold">Validations</h6>
+
+                    <div className="form-check mb-2">
+                        <input
+                            type="checkbox"
+                            className="form-check-input"
+                            checked={
+                                !!field.validationRules?.some((r) => r.type === "required")
+                            }
+                            disabled={readOnly}
+                            onChange={(e) =>
+                                e.target.checked
+                                    ? updateValidationRule({ type: "required" })
+                                    : removeValidationRule("required")
+                            }
+                        />
+                        <label className="form-check-label">Required</label>
+                    </div>
+
+                    {field.type === "number" && (
+                        <div className="d-flex gap-2">
+                            <input
+                                type="number"
+                                placeholder="Min"
+                                className="form-control form-control-sm"
+                                disabled={readOnly}
+                                onChange={(e) =>
+                                    updateValidationRule({
+                                        type: "min",
+                                        value: Number(e.target.value),
+                                    })
+                                }
+                            />
+                            <input
+                                type="number"
+                                placeholder="Max"
+                                className="form-control form-control-sm"
+                                disabled={readOnly}
+                                onChange={(e) =>
+                                    updateValidationRule({
+                                        type: "max",
+                                        value: Number(e.target.value),
+                                    })
+                                }
+                            />
+                        </div>
+                    )}
+
+                    {field.type === "text" && (
+                        <input
+                            type="number"
+                            placeholder="Max Length"
+                            className="form-control form-control-sm"
+                            disabled={readOnly}
+                            onChange={(e) =>
+                                updateValidationRule({
+                                    type: "length",
+                                    max: Number(e.target.value),
+                                })
+                            }
+                        />
+                    )}
+                </>
+            )}
+
+            {/* ---------- VISIBILITY ---------- */}
+            <hr className="my-3" />
+            <h6 className="small fw-bold">Visibility / State Logic</h6>
+
+            <div className="text-muted small mb-2">
+                Configured via Rule Builder
+            </div>
+
+            <button
+                type="button"
+                className="btn btn-outline-primary btn-sm w-100"
+                disabled={readOnly}
+                onClick={() =>
+                    onChange({
+                        visibilityConditions: [
+                            ...(field.visibilityConditions || []),
+                            {
+                                id: crypto.randomUUID(),
+                                logic: "AND",
+                                action: "show",
+                                conditions: [],
+                            } as VisibilityGroup,
+                        ],
+                    })
+                }
+            >
+                + Add Visibility Rule
+            </button>
+
+            {/* ---------- ACTIONS ---------- */}
+            <hr className="my-3" />
+            <h6 className="small fw-bold">Actions & Workflows</h6>
+
+            <div className="form-check mb-2">
+                <input
+                    type="checkbox"
+                    className="form-check-input"
+                    checked={!!field.actions?.triggerClause}
+                    disabled={readOnly}
+                    onChange={(e) =>
+                        onChange({
+                            actions: {
+                                ...field.actions,
+                                triggerClause: e.target.checked,
+                            },
+                        })
+                    }
+                />
+                <label className="form-check-label">
+                    Trigger Clause Insertion
+                </label>
+            </div>
+
+            <input
+                className="form-control form-control-sm"
+                placeholder="Action Flow ID"
+                value={field.actions?.actionFlowId || ""}
+                disabled={readOnly}
+                onChange={(e) =>
+                    onChange({
+                        actions: {
+                            ...field.actions,
+                            actionFlowId: e.target.value,
+                        },
+                    })
+                }
+            />
         </div>
     );
 };

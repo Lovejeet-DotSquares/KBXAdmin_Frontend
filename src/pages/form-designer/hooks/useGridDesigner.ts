@@ -1,8 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// hooks/useGridDesigner.ts
+/* useGridDesigner.ts */
 import { useCallback, useState } from "react";
 import { nanoid } from "nanoid";
 import type { FormField } from "../types/formTypes";
+
+/* ================= TYPES ================= */
 
 export interface DesignerColumn {
   id: string;
@@ -23,13 +24,14 @@ type Selected =
 
 const makeId = () => nanoid();
 
-export default function useGridDesigner(initialRows?: DesignerRow[]) {
-  const [rows, setRows] = useState<DesignerRow[]>(initialRows ?? []);
+/* ================= HOOK ================= */
+
+export default function useGridDesigner() {
+  const [rows, setRows] = useState<DesignerRow[]>([]);
   const [selected, setSelectedState] = useState<Selected>({ type: "none" });
 
-  // --------------------------
-  // HISTORY (Undo/Redo)
-  // --------------------------
+  /* ================= HISTORY ================= */
+
   const [undoStack, setUndoStack] = useState<DesignerRow[][]>([]);
   const [redoStack, setRedoStack] = useState<DesignerRow[][]>([]);
 
@@ -38,124 +40,110 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
     [rows]
   );
 
-  const pushHistory = (prev?: DesignerRow[]) => {
-    setUndoStack((u) => [...u, prev ?? snapshot()]);
+  const pushHistory = () => {
+    setUndoStack((u) => [...u, snapshot()]);
     setRedoStack([]);
   };
 
-  // --------------------------
-  // ADD ROW
-  // --------------------------
+  /* ================= ROWS ================= */
+
   const addRow = (widths: number[] = [12]) => {
     pushHistory();
-    const newRow: DesignerRow = {
-      id: makeId(),
-      columns: widths.map((w) => ({
+    setRows((prev) => [
+      ...prev,
+      {
         id: makeId(),
-        width: Math.max(1, Math.min(12, w)),
-        fields: [],
-      })),
-    };
-    setRows((prev) => [...prev, newRow]);
-    setSelectedState({ type: "row", id: newRow.id });
+        columns: widths.map((w) => ({
+          id: makeId(),
+          width: Math.max(1, Math.min(12, w)),
+          fields: [],
+        })),
+      },
+    ]);
   };
 
-  // --------------------------
-  // REMOVE ROW
-  // --------------------------
+  const addRowBelow = (rowId: string) => {
+    const index = rows.findIndex((r) => r.id === rowId);
+    if (index === -1) return;
+
+    pushHistory();
+    setRows((prev) => {
+      const copy = [...prev];
+      copy.splice(index + 1, 0, {
+        id: makeId(),
+        columns: [{ id: makeId(), width: 12, fields: [] }],
+      });
+      return copy;
+    });
+  };
+
   const removeRow = (rowId: string) => {
     pushHistory();
     setRows((prev) => prev.filter((r) => r.id !== rowId));
     setSelectedState({ type: "none" });
   };
 
-  // --------------------------
-  // ADD COLUMN
-  // --------------------------
-  const addColumn = (rowId: string, width = 6) => {
+  /* ================= COLUMNS ================= */
+
+  const addColumn = (rowId: string) => {
     pushHistory();
     setRows((prev) =>
-      prev.map((r) => {
-        if (r.id !== rowId) return r;
-
-        const newCols = [...r.columns, { id: makeId(), width, fields: [] }];
-
-        // Rebalance columns equally
-        const eq = Math.floor(12 / newCols.length);
-        return {
-          ...r,
-          columns: newCols.map((c) => ({
-            ...c,
-            width: eq,
-          })),
-        };
-      })
+      prev.map((r) =>
+        r.id !== rowId
+          ? r
+          : {
+              ...r,
+              columns: [
+                ...r.columns,
+                {
+                  id: makeId(),
+                  width: Math.floor(12 / (r.columns.length + 1)),
+                  fields: [],
+                },
+              ].map((c) => ({
+                ...c,
+                width: Math.floor(12 / (r.columns.length + 1)),
+              })),
+            }
+      )
     );
   };
 
-  // --------------------------
-  // REMOVE COLUMN
-  // --------------------------
   const removeColumn = (rowId: string, colId: string) => {
     pushHistory();
     setRows((prev) =>
-      prev.map((r) => {
-        if (r.id !== rowId) return r;
-
-        const filtered = r.columns.filter((c) => c.id !== colId);
-        if (!filtered.length) return r;
-
-        const eq = Math.floor(12 / filtered.length);
-        return {
-          ...r,
-          columns: filtered.map((c) => ({ ...c, width: eq })),
-        };
-      })
+      prev.map((r) =>
+        r.id !== rowId
+          ? r
+          : {
+              ...r,
+              columns: r.columns.filter((c) => c.id !== colId),
+            }
+      )
     );
   };
 
-  // --------------------------
-  // RESIZE COLUMN UNITS
-  // --------------------------
   const resizeColumnUnits = (rowId: string, colId: string, delta: number) => {
     if (!delta) return;
-
     pushHistory();
+
     setRows((prev) =>
       prev.map((r) => {
         if (r.id !== rowId) return r;
-
         const cols = [...r.columns];
         const i = cols.findIndex((c) => c.id === colId);
         if (i === -1 || !cols[i + 1]) return r;
 
-        const left = { ...cols[i] };
-        const right = { ...cols[i + 1] };
-        const total = left.width + right.width;
-
-        let newLeft = left.width + delta;
-        let newRight = right.width - delta;
-
-        if (newLeft < 1) {
-          newLeft = 1;
-          newRight = total - 1;
-        }
-        if (newRight < 1) {
-          newRight = 1;
-          newLeft = total - 1;
-        }
-
-        cols[i] = { ...left, width: newLeft };
-        cols[i + 1] = { ...right, width: newRight };
+        cols[i].width += delta;
+        cols[i + 1].width -= delta;
 
         return { ...r, columns: cols };
       })
     );
   };
 
-  // --------------------------
-  // ADD FIELD
-  // --------------------------
+  /* ================= FIELDS ================= */
+
   const addFieldToColumn = (rowId: string, colId: string, field: FormField) => {
     pushHistory();
     setRows((prev) =>
@@ -173,9 +161,6 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
     setSelectedState({ type: "field", id: field.id });
   };
 
-  // --------------------------
-  // UPDATE FIELD
-  // --------------------------
   const updateField = (fieldId: string, patch: Partial<FormField>) => {
     pushHistory();
     setRows((prev) =>
@@ -191,9 +176,6 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
     );
   };
 
-  // --------------------------
-  // DELETE FIELD
-  // --------------------------
   const deleteField = (fieldId: string) => {
     pushHistory();
     setRows((prev) =>
@@ -208,9 +190,6 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
     setSelectedState({ type: "none" });
   };
 
-  // --------------------------
-  // DUPLICATE FIELD
-  // --------------------------
   const duplicateField = (fieldId: string) => {
     pushHistory();
     setRows((prev) =>
@@ -220,33 +199,28 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
           const i = c.fields.findIndex((f) => f.id === fieldId);
           if (i === -1) return c;
 
-          const src = c.fields[i];
-          const copy: FormField = {
-            ...src,
+          const copy = {
+            ...c.fields[i],
             id: makeId(),
-            key: `${src.key}_copy`,
-            label: `${src.label} (copy)`,
+            label: `${c.fields[i].label} (copy)`,
           };
 
           const arr = [...c.fields];
           arr.splice(i + 1, 0, copy);
-
           return { ...c, fields: arr };
         }),
       }))
     );
   };
 
-  // --------------------------
-  // FIND FIELD LOCATION
-  // --------------------------
+  /* ================= FIND / MOVE ================= */
+
   const findFieldLocation = useCallback(
     (fieldId: string) => {
       for (const row of rows) {
         for (const col of row.columns) {
           const index = col.fields.findIndex((f) => f.id === fieldId);
-          if (index !== -1)
-            return { row, col, index, rowId: row.id, colId: col.id };
+          if (index !== -1) return { rowId: row.id, colId: col.id, index };
         }
       }
       return null;
@@ -254,9 +228,6 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
     [rows]
   );
 
-  // --------------------------
-  // MOVE FIELD WITHIN COLUMN
-  // --------------------------
   const moveFieldWithinColumn = (
     rowId: string,
     colId: string,
@@ -267,28 +238,23 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
     pushHistory();
 
     setRows((prev) =>
-      prev.map((r) => {
-        if (r.id !== rowId) return r;
-
-        return {
-          ...r,
-          columns: r.columns.map((c) => {
-            if (c.id !== colId) return c;
-
-            const arr = [...c.fields];
-            const [item] = arr.splice(from, 1);
-            arr.splice(to, 0, item);
-
-            return { ...c, fields: arr };
-          }),
-        };
-      })
+      prev.map((r) =>
+        r.id !== rowId
+          ? r
+          : {
+              ...r,
+              columns: r.columns.map((c) => {
+                if (c.id !== colId) return c;
+                const arr = [...c.fields];
+                const [item] = arr.splice(from, 1);
+                arr.splice(to, 0, item);
+                return { ...c, fields: arr };
+              }),
+            }
+      )
     );
   };
 
-  // --------------------------
-  // MOVE FIELD BETWEEN COLUMNS
-  // --------------------------
   const moveFieldBetweenColumns = (
     srcRowId: string,
     srcColId: string,
@@ -298,27 +264,22 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
     dstIndex: number
   ) => {
     pushHistory();
-
     setRows((prev) => {
-      const copy = JSON.parse(JSON.stringify(prev));
-      const srcRow = copy.find((r: any) => r.id === srcRowId);
-      const dstRow = copy.find((r: any) => r.id === dstRowId);
+      const copy = structuredClone(prev);
+      const srcRow = copy.find((r) => r.id === srcRowId);
+      const dstRow = copy.find((r) => r.id === dstRowId);
       if (!srcRow || !dstRow) return prev;
 
-      const srcCol = srcRow.columns.find((c: any) => c.id === srcColId);
-      const dstCol = dstRow.columns.find((c: any) => c.id === dstColId);
+      const srcCol = srcRow.columns.find((c) => c.id === srcColId);
+      const dstCol = dstRow.columns.find((c) => c.id === dstColId);
       if (!srcCol || !dstCol) return prev;
 
       const [field] = srcCol.fields.splice(srcIndex, 1);
       dstCol.fields.splice(dstIndex, 0, field);
-
       return copy;
     });
   };
 
-  // --------------------------
-  // MOVE COLUMN WITHIN ROW
-  // --------------------------
   const moveColumn = (rowId: string, from: number, to: number) => {
     if (from === to) return;
     pushHistory();
@@ -326,19 +287,14 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
     setRows((prev) =>
       prev.map((r) => {
         if (r.id !== rowId) return r;
-
         const cols = [...r.columns];
-        const [moved] = cols.splice(from, 1);
-        cols.splice(to, 0, moved);
-
+        const [c] = cols.splice(from, 1);
+        cols.splice(to, 0, c);
         return { ...r, columns: cols };
       })
     );
   };
 
-  // --------------------------
-  // MOVE ROW
-  // --------------------------
   const moveRow = (from: number, to: number) => {
     if (from === to) return;
     pushHistory();
@@ -351,38 +307,17 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
     });
   };
 
-  // --------------------------
-  // SET SELECTED
-  // --------------------------
-  const setSelectedField = (id: string | null) =>
-    setSelectedState(id ? { type: "field", id } : { type: "none" });
-
-  const setSelectedRow = (id: string | null) =>
-    setSelectedState(id ? { type: "row", id } : { type: "none" });
-
-  const setSelectedCol = (rowId: string | null, colId: string | null) =>
-    setSelectedState(
-      rowId && colId ? { type: "column", rowId, id: colId } : { type: "none" }
-    );
-
-  // --------------------------
-  // ALL FIELDS
-  // --------------------------
   const allFields = rows.flatMap((r) => r.columns.flatMap((c) => c.fields));
 
-  // --------------------------
-  // UNDO / REDO
-  // --------------------------
+  /* ================= UNDO / REDO ================= */
+
   const undo = () => {
     setUndoStack((u) => {
       if (!u.length) return u;
       setRedoStack((r) => [snapshot(), ...r]);
-      const last = u[u.length - 1];
-      setRows(last);
+      setRows(u[u.length - 1]);
       return u.slice(0, -1);
     });
-
-    setSelectedState({ type: "none" });
   };
 
   const redo = () => {
@@ -393,32 +328,35 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
       setRows(first);
       return rest;
     });
-
-    setSelectedState({ type: "none" });
   };
 
   return {
     rows,
-    setRows,
+    setRows, // ✅ exposed for initial load ONLY
+
     addRow,
+    addRowBelow,
     removeRow,
+
     addColumn,
     removeColumn,
     resizeColumnUnits,
+
     addFieldToColumn,
     updateField,
     deleteField,
     duplicateField,
+
     findFieldLocation,
     moveFieldWithinColumn,
     moveFieldBetweenColumns,
+
     moveColumn,
     moveRow,
 
     selected,
-    setSelectedField,
-    setSelectedRow,
-    setSelectedCol,
+    setSelectedField: (id: string | null) =>
+      setSelectedState(id ? { type: "field", id } : { type: "none" }),
 
     allFields,
 
@@ -426,7 +364,5 @@ export default function useGridDesigner(initialRows?: DesignerRow[]) {
     redo,
     canUndo: undoStack.length > 0,
     canRedo: redoStack.length > 0,
-
-    createSnapshot: snapshot,
   };
 }

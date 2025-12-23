@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 // ------------------------------------
-// FIELD TYPE (SINGLE SOURCE OF TRUTH)
+// FIELD TYPE
 // ------------------------------------
 export type FieldType =
-  // ---------------- BASIC INPUTS ----------------
   | "text"
   | "textarea"
   | "number"
@@ -15,8 +14,6 @@ export type FieldType =
   | "currency"
   | "hidden"
   | "autocomplete"
-
-  // ---------------- OPTIONS ----------------
   | "select"
   | "multiselect"
   | "checkbox"
@@ -25,16 +22,12 @@ export type FieldType =
   | "yesno"
   | "rating"
   | "slider"
-
-  // ---------------- DATE / MEDIA ----------------
   | "date"
   | "time"
   | "color"
   | "file"
   | "signature"
   | "image"
-
-  // ---------------- STATIC / CONTENT ----------------
   | "label"
   | "paragraph"
   | "richtext"
@@ -44,17 +37,11 @@ export type FieldType =
   | "spacer"
   | "pagebreak"
   | "alert"
-
-  // ---------------- HEADINGS ----------------
   | "heading1"
   | "heading2"
   | "heading3"
   | "subtitle"
-
-  // ---------------- LISTS ----------------
   | "numbered"
-
-  // ---------------- ADVANCED / COMPLEX ----------------
   | "table"
   | "address"
   | "repeater"
@@ -66,7 +53,7 @@ export type FieldType =
   | "barcode";
 
 // ------------------------------------
-// OPTION (SELECT / RADIO / CHECKBOX)
+// OPTION
 // ------------------------------------
 export interface FieldOption {
   id: string;
@@ -76,46 +63,14 @@ export interface FieldOption {
 }
 
 // ------------------------------------
-// TABLE COLUMN DEFINITION
-// ------------------------------------
-export interface TableColumn {
-  id: string;
-  key: string;
-  label: string;
-  type?: FieldType;
-  width?: number;
-  required?: boolean;
-}
-
-// ------------------------------------
-// VALIDATION RULE (RULE ENGINE READY)
+// VALIDATION
 // ------------------------------------
 export type ValidationRule =
-  | {
-      type: "required";
-      message?: string;
-    }
-  | {
-      type: "min";
-      value: number;
-      message?: string;
-    }
-  | {
-      type: "max";
-      value: number;
-      message?: string;
-    }
-  | {
-      type: "length";
-      min?: number;
-      max?: number;
-      message?: string;
-    }
-  | {
-      type: "pattern";
-      regex: string;
-      message?: string;
-    }
+  | { type: "required"; message?: string }
+  | { type: "min"; value: number; message?: string }
+  | { type: "max"; value: number; message?: string }
+  | { type: "length"; min?: number; max?: number; message?: string }
+  | { type: "pattern"; regex: string; message?: string }
   | {
       type: "format";
       value: "email" | "phone" | "numeric" | "url";
@@ -123,71 +78,72 @@ export type ValidationRule =
     };
 
 // ------------------------------------
-// VISIBILITY / CONDITION RULE
+// VISIBILITY RULES
 // ------------------------------------
+export type VisibilityOperator =
+  | "equals"
+  | "not_equals"
+  | "contains"
+  | "greater_than"
+  | "less_than"
+  | "is_empty"
+  | "is_not_empty";
+
 export interface VisibilityCondition {
+  id: string;
   fieldKey: string;
-  operator:
-    | "equals"
-    | "not_equals"
-    | "contains"
-    | "greater_than"
-    | "less_than"
-    | "is_empty"
-    | "is_not_empty";
+  operator: VisibilityOperator;
   value?: any;
+}
+
+export interface VisibilityGroup {
+  id: string;
+  logic: "AND" | "OR";
+  conditions: VisibilityCondition[];
   action: "show" | "hide" | "enable" | "disable";
 }
 
 // ------------------------------------
-// FORM FIELD (MAIN ENTITY)
+// FORM FIELD
 // ------------------------------------
 export interface FormField {
   id: string;
   type: FieldType;
 
-  /* ---------- KEY / LABEL ---------- */
   key?: string;
   label?: string;
 
-  /* ---------- COMMON ---------- */
   placeholder?: string;
   helperText?: string;
   defaultValue?: any;
+
   required?: boolean;
   disabled?: boolean;
   readonly?: boolean;
 
-  /* ---------- FORMAT (✅ ADD THIS) ---------- */
   format?: "none" | "email" | "phone" | "numeric" | "url";
-
-  /* ---------- UI VARIANT ---------- */
   variant?: "standard" | "outlined" | "filled";
 
-  /* ---------- OPTIONS ---------- */
   options?: FieldOption[];
 
-  /* ---------- NUMBER / SLIDER ---------- */
   min?: number;
   max?: number;
   step?: number;
 
-  /* ---------- NUMBERED LIST ---------- */
   items?: string[];
   listStyle?: "numeric" | "roman" | "alphabetic" | "hierarchy";
 
-  /* ---------- VALIDATION ---------- */
   validationRules?: ValidationRule[];
-
-  /* ---------- VISIBILITY ---------- */
-  visibilityConditions?: VisibilityCondition[];
+  visibilityConditions?: VisibilityGroup[];
 }
 
 // ------------------------------------
-// RULE / CLAUSE (LEGAL / NUMBERED LIST)
+// FORM META
 // ------------------------------------
-export interface ClauseItem {
+export interface FormSummary {
   id: string;
-  title?: string;
-  body: string;
+  title: string;
+  status: "DRAFT" | "PUBLISHED";
+  updatedAt: string;
+  lockedBy?: string;
 }

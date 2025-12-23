@@ -7,9 +7,11 @@ const Dashboard = lazy(() => import("../pages/dashboard/Dashboard"));
 const UsersList = lazy(() => import("../pages/users/UsersList"));
 const Reports = lazy(() => import("../pages/reports/Reports"));
 const Unauthorized = lazy(() => import("../pages/errors/Unauthorized"));
-const FormDesignerPage = lazy(() =>
-    import("../pages/form-designer/FormDesignerPage")
+const FormsListPage = lazy(() =>
+    import("../pages/form-designer/FormListPanel")
 );
+const FormDesignerPage = lazy(() =>
+    import("../pages/form-designer/FormDesignerPage"));
 const QuestionBankManagementPage = lazy(() =>
     import("../pages/questions-banks/QuestionBankManagementPage")
 );
@@ -58,13 +60,23 @@ export const appRoutes: AppRoute[] = [
     },
     {
         path: "/forms",
-        element: <FormDesignerPage />,
+        element: <FormsListPage />,
         title: "Forms",
         breadcrumb: "Forms",
         layout: "default",
         isProtected: true,
         roles: ["Admin"],
     },
+    {
+        path: "/forms/:formId",
+        element: <FormDesignerPage />,
+        title: "Edit Form",
+        breadcrumb: "Edit Form",
+        layout: "default",
+        isProtected: true,
+        roles: ["Admin"],
+    },
+
     {
         path: "/question-bank",
         element: <QuestionBankManagementPage />,

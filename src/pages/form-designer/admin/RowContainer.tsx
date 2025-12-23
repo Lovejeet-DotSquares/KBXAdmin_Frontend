@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// components/RowContainer.tsx
 import React, { useRef, useMemo, useEffect, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import {
@@ -21,6 +20,8 @@ const RowContainer = ({
     deleteField,
     deleteRow,
     deleteColumn,
+    selectedFieldId,
+    onAddRowBelow
 }: any) => {
     const rowRef = useRef<HTMLDivElement | null>(null);
     const [rowWidth, setRowWidth] = useState(0);
@@ -34,9 +35,8 @@ const RowContainer = ({
         return () => obs.disconnect();
     }, []);
 
-    const { setNodeRef: setDropRef, isOver } = useDroppable({
+    const { setNodeRef: setDropRef } = useDroppable({
         id: `row:${row.id}`,
-        data: { from: "row-drop", rowId: row.id },
     });
 
     const {
@@ -48,24 +48,17 @@ const RowContainer = ({
         isDragging,
     } = useSortable({
         id: `row:${row.id}`,
-        data: {
-            type: "row",
-            rowId: row.id,
-            index,
-        },
+        data: { type: "row", rowId: row.id, index },
     });
-
 
     const style: React.CSSProperties = {
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.6 : 1,
-        borderRadius: 14,
         background: "#fff",
+        borderRadius: 14,
         padding: 12,
-        boxShadow: isOver
-            ? "0 0 0 2px rgba(99,102,241,.35)"
-            : "0 3px 12px rgba(0,0,0,.05)",
+        boxShadow: "0 4px 14px rgba(0,0,0,.08)",
     };
 
     const strategy = useMemo(() => {
@@ -83,7 +76,7 @@ const RowContainer = ({
             }}
             style={style}
         >
-            {/* HEADER */}
+            {/* ROW HEADER */}
             <div
                 {...attributes}
                 {...listeners}
@@ -98,19 +91,28 @@ const RowContainer = ({
                     >
                         + Column
                     </button>
+
+                    <button
+                        className="btn btn-sm btn-outline-success"
+                        onClick={() => onAddRowBelow(row.id)}
+                    >
+                        + Row
+                    </button>
+
                     <button
                         className="btn btn-sm btn-outline-danger"
-                        onClick={() => deleteRow?.(row.id)}
+                        onClick={() => deleteRow(row.id)}
                     >
                         Delete
                     </button>
                 </div>
+
             </div>
 
             {/* COLUMNS */}
-            <div className="d-flex gap-2 flex-wrap" style={{ alignItems: "stretch" }}>
+            <div className="d-flex gap-2 align-items-stretch">
                 <SortableContext
-                    items={row.columns.map((c: any) => `col:${c.id}`)}
+                    items={row.columns.map((c: any) => `column:${c.id}`)}
                     strategy={strategy}
                 >
                     {row.columns.map((col: any) => (
@@ -118,13 +120,14 @@ const RowContainer = ({
                             key={col.id}
                             rowId={row.id}
                             column={col}
-                            rowContainerRef={rowRef}
+                            selectedFieldId={selectedFieldId}
                             onResizeUnits={onResize}
                             setSelectedField={setSelectedField}
                             duplicateField={duplicateField}
                             deleteField={deleteField}
                             deleteColumn={deleteColumn}
                         />
+
                     ))}
                 </SortableContext>
             </div>

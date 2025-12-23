@@ -1,22 +1,31 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import ApiUtility from "./../../../api/ApiUtility";
+import ApiUtility from "../../../api/ApiUtility";
 
 export const FormDesignerService = {
-  createForm: (title: string, schemaJson: any) =>
-    ApiUtility.post("/forms/create", { title, schemaJson, user: "admin" }),
+  getForms: (page = 1, pageSize = 10, search = "") =>
+    ApiUtility.get("/forms", { params: { page, pageSize, search } }),
 
-  saveDraft: (formId: string, schemaJson: any) =>
+  getFormById: (formId: string) => ApiUtility.get(`/forms/${formId}`),
+
+  createForm: (title: string) => ApiUtility.post("/forms", { title }),
+
+  saveDraft: (formId: string, schemaJson: string) =>
     ApiUtility.put(`/forms/${formId}`, {
       schemaJson,
-      createVersion: true,
-      user: "admin",
     }),
 
-  autoSave: (formId: string, schemaJson: any) =>
-    ApiUtility.post(`/forms/${formId}/autosave`, { schemaJson, user: "admin" }),
+  autoSave: (formId: string, schemaJson: string) =>
+    ApiUtility.post(`/forms/${formId}/autosave`, {
+      schemaJson,
+    }),
+
+  getVersions: (formId: string) => ApiUtility.get(`/forms/${formId}/versions`),
+
+  restoreVersion: (formId: string, versionId: string) =>
+    ApiUtility.post(`/forms/${formId}/versions/${versionId}/restore`, {}),
 
   publishForm: (formId: string) =>
     ApiUtility.post(`/forms/${formId}/publish`, {}),
 
-  getVersions: (formId: string) => ApiUtility.get(`/forms/${formId}/versions`),
+  deleteForm: (formId: string) => ApiUtility.delete(`/forms/${formId}`),
 };

@@ -1,6 +1,6 @@
 /* FormDesignerPage.tsx */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
     Container,
     Row,
@@ -10,11 +10,17 @@ import {
     Card,
     Nav,
 } from "react-bootstrap";
-import { FaPlay, FaUndo, FaRedo, FaPlus } from "react-icons/fa";
+import { FaPlay, FaUndo, FaRedo, FaSave, FaUpload } from "react-icons/fa";
+import {
+    DndContext,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragOverlay,
+    rectIntersection,
+} from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-//import { useNavigate } from "react-router-dom";
-import { DndContext, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
-import { rectIntersection } from "@dnd-kit/core";
+import { useNavigate, useParams } from "react-router-dom";
 
 import useGridDesigner from "./hooks/useGridDesigner";
 import { useAutosave } from "./hooks/useAutosave";
@@ -23,56 +29,26 @@ import FormBuilderPanel from "./admin/FormBuilderPanel";
 import FieldPropertiesPanel from "./admin/FieldPropertiesPanel";
 import RuleBuilderPanel from "./admin/RuleBuilderPanel";
 import JsonEnginePanel from "./admin/JsonEnginePanel";
-import TableDesignerModal from "./admin/TableDesignerModal";
 import RowContainer from "./admin/RowContainer";
 import FormRunner from "./enduser/FormRunner";
+import CommonLoader from "../../components/common/CommonLoader";
+import AutoSaveToast from "../../components/common/AutoSaveToast";
 
 import type { FormField, FieldType } from "./types/formTypes";
-
-const toolbarStyle: React.CSSProperties = {
-    height: 48,
-    borderBottom: "1px solid #eee",
-    background: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0 16px",
-    position: "sticky",
-    top: 0,
-    zIndex: 10,
-};
-
-const dragOverlayStyle: React.CSSProperties = {
-    background: "#fff",
-    padding: 12,
-    borderRadius: 10,
-    boxShadow: "0 12px 30px rgba(0,0,0,.25)",
-    width: 220,
-};
-
-const canvasWrapperStyle: React.CSSProperties = {
-    padding: 20,
-    background: "#f8f9fa",
-    height: "100%",
-    overflow: "auto",
-};
-
-const emptyCanvasCardStyle: React.CSSProperties = {
-    padding: 24,
-    textAlign: "center",
-    borderRadius: 10,
-    boxShadow: "0 4px 12px rgba(0,0,0,.08)",
-};
+import { FormDesignerService } from "./services/FormDesignerService";
 
 const FormDesignerPage: React.FC = () => {
-    //  const navigate = useNavigate();
+    const { formId } = useParams<{ formId: string }>();
+    const navigate = useNavigate();
 
     const {
         rows,
+        setRows,
         allFields,
         selected,
         findFieldLocation,
         addRow,
+        addRowBelow,
         addColumn,
         addFieldToColumn,
         updateField,
@@ -92,103 +68,112 @@ const FormDesignerPage: React.FC = () => {
         canRedo,
     } = useGridDesigner();
 
+    const [loading, setLoading] = useState(true);
     const [showPreview, setShowPreview] = useState(false);
     const [activeRightTab, setActiveRightTab] =
         useState<"properties" | "rules" | "json">("properties");
-
-    const [showTableModal, setShowTableModal] = useState(false);
-    const [pendingNewField, setPendingNewField] = useState<any>(null);
-    const [tableFieldId, setTableFieldId] = useState<string | null>(null);
-
     const [draggingField, setDraggingField] = useState<FormField | null>(null);
-    const [draggingPaletteType, setDraggingPaletteType] = useState<string | null>(
-        null
+    const [draggingPaletteType, setDraggingPaletteType] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
+    const [autoSaving, setAutoSaving] = useState(false);
+    /* ================= LOAD FORM ================= */
+
+    useEffect(() => {
+        if (!formId) return;
+
+        (async () => {
+            setLoading(true);
+
+            const data: any = await FormDesignerService.getFormById(formId);
+
+            let schema: any = { rows: [] };
+
+            try {
+                // first parse
+                const firstParse = JSON.parse(data.schemaJson);
+
+                // if still string → parse again
+                schema =
+                    typeof firstParse === "string"
+                        ? JSON.parse(firstParse)
+                        : firstParse;
+            } catch (err) {
+                console.error("Invalid schemaJson", err);
+            }
+
+            setRows(schema.rows || []);
+            setLoading(false);
+        })();
+    }, [formId]);
+
+    /* ================= AUTOSAVE ================= */
+
+    useAutosave(
+        formId!,
+        async () => {
+            if (loading || isPublishing || isSaving) return;
+
+            try {
+                setAutoSaving(true);
+                await FormDesignerService.autoSave(
+                    formId!,
+                    JSON.stringify({ rows })
+                );
+            } finally {
+                setAutoSaving(false);
+            }
+        },
+        20000
     );
 
-    useAutosave("demo-form", () => ({ rows }));
+
+
+    /* ================= DND ================= */
 
     const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: { distance: 6 },
-        })
+        useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
     );
 
-    const getSelectedFieldId = () =>
-        selected?.type === "field" ? selected.id : null;
+    const handleDragStart = ({ active }: any) => {
+        const data = active?.data?.current;
+        if (!data) return;
 
-    const getSelectedField = () => {
-        const id = getSelectedFieldId();
-        return id ? allFields.find((f) => f.id === id) ?? null : null;
-    };
-    const handleDragOver = ({ active, over }: any) => {
-        if (!over) return;
-
-        const activeData = active.data.current;
-        const overData = over.data.current;
-
-        // ===== FIELD DRAG =====
-        if (activeData?.type === "field" && overData?.type === "field") {
-            const src = findFieldLocation(activeData.fieldId);
-            const dst = findFieldLocation(overData.fieldId);
-            if (!src || !dst) return;
-
-            if (src.colId !== dst.colId) {
-                moveFieldBetweenColumns(
-                    src.rowId,
-                    src.colId,
-                    src.index,
-                    dst.rowId,
-                    dst.colId,
-                    dst.index
-                );
-            }
-        }
-    };
-
-    const handleDragStart = (event: any) => {
-        const data = event.active?.data?.current;
-
-        if (data?.from === "canvas-item") {
-            const id = String(event.active.id).replace("field:", "");
-            const loc = findFieldLocation(id);
-            setDraggingField(loc?.col?.fields?.[loc.index] ?? null);
-            setDraggingPaletteType(null);
+        if (data.type === "field") {
+            setDraggingField({ ...data.field });
         }
 
-        if (data?.from === "palette") {
-            setDraggingPaletteType(String(data.fieldType));
-            setDraggingField(null);
+        if (data.type === "palette") {
+            setDraggingPaletteType(data.fieldType);
         }
     };
 
     const handleDragEnd = ({ active, over }: any) => {
         setDraggingField(null);
         setDraggingPaletteType(null);
-        if (!over) return;
 
-        const a = active.data.current;
-        const o = over.data.current;
+        if (!active || !over || active.id === over.id) return;
 
-        /* ================= PALETTE → COLUMN ================= */
-        if (a?.from === "palette" && o?.from === "column-drop") {
-            const field: FormField = {
+        const a = active.data?.current;
+        const o = over.data?.current;
+        if (!a || !o) return;
+
+        if (a.type === "palette" && o.type === "column-drop") {
+            addFieldToColumn(o.rowId, o.colId, {
                 id: crypto.randomUUID(),
-                type: a.fieldType,
                 key: `${a.fieldType}_${Date.now()}`,
                 label: a.fieldType,
-            };
-            addFieldToColumn(o.rowId, o.colId, field);
+                type: a.fieldType as FieldType,
+            });
             return;
         }
 
-        /* ================= FIELD MOVE ================= */
-        if (a?.from === "field" && over.id.startsWith("field:")) {
+        if (a.type === "field" && o.type === "field") {
             const src = findFieldLocation(a.fieldId);
-            const dstId = over.id.replace("field:", "");
-            const dst = findFieldLocation(dstId);
+            const dst = findFieldLocation(o.fieldId);
             if (!src || !dst) return;
 
-            if (src.rowId === dst.rowId && src.colId === dst.colId) {
+            if (src.colId === dst.colId) {
                 moveFieldWithinColumn(src.rowId, src.colId, src.index, dst.index);
             } else {
                 moveFieldBetweenColumns(
@@ -200,120 +185,156 @@ const FormDesignerPage: React.FC = () => {
                     dst.index
                 );
             }
-            return;
         }
 
-        /* ================= COLUMN MOVE ================= */
-        if (a?.from === "column" && o?.from === "column") {
-            if (a.rowId !== o.rowId) return; // ❌ no cross-row columns
-
+        if (a.type === "column" && o.type === "column" && a.rowId === o.rowId) {
             moveColumn(a.rowId, a.index, o.index);
-            return;
         }
 
-        /* ================= ROW MOVE ================= */
-        if (a?.from === "row" && o?.from === "row") {
+        if (a.type === "row" && o.type === "row") {
             moveRow(a.index, o.index);
         }
     };
 
+    const selectedFieldId = selected.type === "field" ? selected.id : null;
+    const selectedField = useMemo(
+        () =>
+            selectedFieldId
+                ? allFields.find((f) => f.id === selectedFieldId) ?? null
+                : null,
+        [selectedFieldId, allFields]
+    );
+
+    if (loading) return <div className="p-4">Loading form…</div>;
+
     return (
         <Container fluid className="p-0 h-100">
+            {(isSaving || isPublishing) && (
+                <CommonLoader
+                    fullscreen
+                    text={isPublishing ? "Publishing form…" : "Saving draft…"}
+                />
+            )}
+
             {/* TOOLBAR */}
-            <div style={toolbarStyle}>
+            <div className="d-flex align-items-center justify-content-between border-bottom px-3" style={{ height: 48 }}>
+                <Button size="sm" variant="outline-secondary" onClick={() => navigate("/forms")}>
+                    ← Back
+                </Button>
+
                 <ButtonGroup size="sm">
-                    <Button
-                        variant="outline-secondary"
-                        disabled={!canUndo}
-                        onClick={undo}
-                    >
-                        <FaUndo />
-                    </Button>
-                    <Button
-                        variant="outline-secondary"
-                        disabled={!canRedo}
-                        onClick={redo}
-                    >
-                        <FaRedo />
-                    </Button>
+                    <Button disabled={!canUndo} onClick={undo}><FaUndo /></Button>
+                    <Button disabled={!canRedo} onClick={redo}><FaRedo /></Button>
                 </ButtonGroup>
 
-                <Button
-                    size="sm"
-                    variant={showPreview ? "success" : "primary"}
-                    style={{ borderRadius: 20, padding: "4px 14px" }}
-                    onClick={() => setShowPreview((v) => !v)}
-                >
-                    <FaPlay className="me-1" />
-                    {showPreview ? "Back" : "Preview"}
-                </Button>
+                <ButtonGroup size="sm" >
+                    <Button
+                        style={{ margin: 2 }}
+                        variant="outline-primary"
+                        disabled={isSaving || isPublishing}
+                        onClick={async () => {
+                            try {
+                                setIsSaving(true);
+                                await FormDesignerService.saveDraft(
+                                    formId!,
+                                    JSON.stringify({ rows })
+                                );
+                            } finally {
+                                setIsSaving(false);
+                            }
+                        }}
+                    >
+                        <FaSave /> Save Draft
+                    </Button>
+
+
+                    <Button
+                        style={{ margin: 2 }}
+                        variant="success"
+                        disabled={isSaving || isPublishing}
+                        onClick={async () => {
+                            try {
+                                setIsPublishing(true);
+
+                                // 1️⃣ Save final schema
+                                await FormDesignerService.saveDraft(
+                                    formId!,
+                                    JSON.stringify({ rows })
+                                );
+
+                                // 2️⃣ Publish
+                                await FormDesignerService.publishForm(formId!);
+
+                                navigate("/forms");
+                            } finally {
+                                setIsPublishing(false);
+                            }
+                        }}
+                    >
+                        <FaUpload /> Publish
+                    </Button>
+
+
+
+                    <Button
+                        style={{ margin: 2 }}
+
+                        variant={showPreview ? "secondary" : "primary"}
+                        onClick={() => setShowPreview((v) => !v)}
+                    >
+                        <FaPlay /> {showPreview ? "Back" : "Preview"}
+                    </Button>
+                </ButtonGroup>
             </div>
 
             <DndContext
                 sensors={sensors}
                 collisionDetection={rectIntersection}
                 onDragStart={handleDragStart}
-                onDragOver={handleDragOver}   // ✅ REQUIRED
                 onDragEnd={handleDragEnd}
             >
                 <Row className="g-0" style={{ height: "calc(100vh - 48px)" }}>
-                    {/* LEFT */}
-                    <Col md={3} className="border-end bg-white overflow-auto">
+                    <Col md={3} className="border-end bg-white">
                         <FormBuilderPanel
                             onAddField={(type) => {
                                 if (!rows.length) addRow([12]);
-                                const row = rows[0];
-                                addFieldToColumn(row.id, row.columns[0].id, {
-                                    id: crypto.randomUUID(),
-                                    key: `${type}_${Date.now()}`,
-                                    label: type,
-                                    type: type as FieldType,
-                                });
+                                addFieldToColumn(
+                                    rows[0].id,
+                                    rows[0].columns[0].id,
+                                    {
+                                        id: crypto.randomUUID(),
+                                        key: `${type}_${Date.now()}`,
+                                        label: type,
+                                        type: type as FieldType,
+                                    }
+                                );
                             }}
                         />
                     </Col>
 
-                    {/* CANVAS */}
-                    <Col md={6} style={canvasWrapperStyle}>
+                    <Col md={6} className="bg-light p-3 overflow-auto">
                         {!showPreview ? (
-                            <>
-                                {!rows.length && (
-                                    <Card style={emptyCanvasCardStyle}>
-                                        <b>No rows yet</b>
-                                        <div className="text-muted small mb-3">
-                                            Drag fields from left
-                                        </div>
-                                        <Button size="sm" onClick={() => addRow([12])}>
-                                            <FaPlus /> Add Row
-                                        </Button>
-                                    </Card>
-                                )}
-
-                                <SortableContext
-                                    items={rows.map((r) => `row:${r.id}`)}
-                                    strategy={verticalListSortingStrategy}
-                                >
-                                    {rows.map((r, i) => (
-                                        <RowContainer
-                                            key={r.id}
-                                            row={r}
-                                            index={i}
-                                            onAddColumn={addColumn}
-                                            onDropField={addFieldToColumn}
-                                            onResize={resizeColumnUnits}
-                                            findFieldLocation={findFieldLocation}
-                                            duplicateField={duplicateField}
-                                            deleteField={deleteField}
-                                            deleteRow={removeRow}
-                                            deleteColumn={removeColumn}
-                                            setSelectedField={(id: any) => {
-                                                setSelectedField(id);
-                                                setActiveRightTab("properties");
-                                            }}
-                                        />
-                                    ))}
-                                </SortableContext>
-                            </>
+                            <SortableContext
+                                items={rows.map((r) => r.id)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                {rows.map((r, i) => (
+                                    <RowContainer
+                                        key={r.id}
+                                        row={r}
+                                        index={i}
+                                        onAddColumn={addColumn}
+                                        onAddRowBelow={addRowBelow}
+                                        onResize={resizeColumnUnits}
+                                        duplicateField={duplicateField}
+                                        deleteField={deleteField}
+                                        deleteRow={removeRow}
+                                        deleteColumn={removeColumn}
+                                        setSelectedField={setSelectedField}
+                                        selectedFieldId={selectedFieldId}
+                                    />
+                                ))}
+                            </SortableContext>
                         ) : (
                             <Card className="p-4">
                                 <FormRunner rows={rows} />
@@ -321,91 +342,56 @@ const FormDesignerPage: React.FC = () => {
                         )}
                     </Col>
 
-                    {/* RIGHT */}
                     <Col md={3} className="border-start bg-white d-flex flex-column">
-                        <div className="p-3 fw-bold">Inspector</div>
-
-                        <Nav
-                            variant="tabs"
-                            activeKey={activeRightTab}
-                            onSelect={(k: any) => setActiveRightTab(k)}
-                            className="px-3"
-                        >
-                            <Nav.Item>
-                                <Nav.Link eventKey="properties">Properties</Nav.Link>
-                            </Nav.Item>
-                            <Nav.Item>
-                                <Nav.Link eventKey="rules">Rules</Nav.Link>
-                            </Nav.Item>
-                            <Nav.Item>
-                                <Nav.Link eventKey="json">JSON</Nav.Link>
-                            </Nav.Item>
+                        <Nav variant="tabs" activeKey={activeRightTab} onSelect={(k) => setActiveRightTab(k as any)}>
+                            <Nav.Item><Nav.Link eventKey="properties">Properties</Nav.Link></Nav.Item>
+                            <Nav.Item><Nav.Link eventKey="rules">Rules</Nav.Link></Nav.Item>
+                            <Nav.Item><Nav.Link eventKey="json">JSON</Nav.Link></Nav.Item>
                         </Nav>
 
-                        <div className="p-3 flex-grow-1 overflow-auto">
+                        <div className="flex-grow-1 p-3 overflow-auto">
                             {activeRightTab === "properties" && (
                                 <FieldPropertiesPanel
-                                    field={getSelectedField()}
-                                    onChange={(patch) => {
-                                        const id = getSelectedFieldId();
-                                        if (id) updateField(id, patch);
-                                    }}
+                                    field={selectedField}
+                                    onChange={(p) =>
+                                        selectedFieldId && updateField(selectedFieldId, p)
+                                    }
                                 />
                             )}
 
                             {activeRightTab === "rules" && (
                                 <RuleBuilderPanel
-                                    field={getSelectedField()}
+                                    field={selectedField}
                                     allFields={allFields}
-                                    onFieldChange={(patch) => {
-                                        const id = getSelectedFieldId();
-                                        if (id) updateField(id, patch);
-                                    }}
+                                    onFieldChange={(p) =>
+                                        selectedFieldId && updateField(selectedFieldId, p)
+                                    }
                                 />
                             )}
 
-                            {activeRightTab === "json" && <JsonEnginePanel rows={rows} />}
+                            {activeRightTab === "json" && (
+                                <JsonEnginePanel rows={rows} />
+                            )}
                         </div>
                     </Col>
                 </Row>
 
-                {/* DRAG OVERLAY */}
                 <DragOverlay>
                     {draggingField && (
-                        <div style={dragOverlayStyle}>
+                        <Card className="p-2 shadow">
                             <b>{draggingField.label}</b>
-                            <div className="text-muted small">{draggingField.type}</div>
-                        </div>
+                            <div className="small text-muted">{draggingField.type}</div>
+                        </Card>
                     )}
                     {draggingPaletteType && (
-                        <div style={dragOverlayStyle}>
+                        <Card className="p-2 shadow">
                             <b>{draggingPaletteType}</b>
-                            <div className="text-muted small">New Field</div>
-                        </div>
+                        </Card>
                     )}
                 </DragOverlay>
             </DndContext>
+            <AutoSaveToast visible={autoSaving} />
 
-            {/* TABLE MODAL */}
-            <TableDesignerModal
-                open={showTableModal}
-                tableFieldId={tableFieldId}
-                pendingNewField={pendingNewField}
-                findFieldLocation={findFieldLocation}
-                onSave={(updated) => updateField(tableFieldId!, updated)}
-                onCreate={(updated) => {
-                    if (!pendingNewField) return;
-                    const { rowId, colId, field } = pendingNewField;
-                    addFieldToColumn(rowId, colId, { ...field, ...updated });
-                    setShowTableModal(false);
-                    setPendingNewField(null);
-                }}
-                onClose={() => {
-                    setShowTableModal(false);
-                    setPendingNewField(null);
-                    setTableFieldId(null);
-                }}
-            />
         </Container>
     );
 };

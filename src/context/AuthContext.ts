@@ -1,24 +1,23 @@
-import  { createContext } from "react";
+import { createContext } from "react";
 
 export interface AuthState {
-    isAuthenticated: boolean;
-    role: string;
-    email: string | null;
-    userId: string | null;
+  isAuthenticated: boolean;
+  role: string;
+  email: string | null;
+  userId: string | null;
 }
+// auth/AuthContext.ts
 
 interface AuthContextValue extends AuthState {
-    login: (token: string) => void;
-    logout: () => void;
+  login: (token: string) => void;
+  logout: () => void;
 }
 
 export const AuthContext = createContext<AuthContextValue>({
-    isAuthenticated: false,
-    role: "",
-    email: null,
-    userId: null,
-    login: () => { },
-    logout: () => { },
+  isAuthenticated: false,
+  role: "",
+  email: null,
+  userId: null,
+  login: () => {},
+  logout: () => {},
 });
-
-

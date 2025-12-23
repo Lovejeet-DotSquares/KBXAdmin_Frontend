@@ -8,7 +8,7 @@ import {
     FaCalendarAlt, FaUpload, FaFileAlt, FaImages, FaTable,
     FaSignature, FaHeading, FaListOl, FaEnvelope, FaPhone,
     FaParagraph, FaCode,
-    FaRedo, FaCalculator,
+    FaRedo,
     FaList, FaCheckSquare
 } from "react-icons/fa";
 
@@ -52,7 +52,6 @@ const categories = [
         title: "Legal & Structured",
         items: [
             { type: "table", label: "Table (Assets / Witness)", icon: <FaTable /> },
-            { type: "calculated", label: "Calculated Field", icon: <FaCalculator /> },
             { type: "signature", label: "Signature", icon: <FaSignature /> },
             { type: "image", label: "Image (Stamp / Logo)", icon: <FaImages /> },
         ],

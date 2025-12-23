@@ -124,7 +124,11 @@ export interface TableConfig {
   minRows?: number;
   maxRows?: number;
 }
-
+export interface NumberedItem {
+  id: string;
+  text: string;
+  subItems?: NumberedItem[];
+}
 /* ------------------------------------
  * FORM FIELD (CORE)
  * ------------------------------------ */
@@ -160,7 +164,7 @@ export interface FormField {
   step?: number;
 
   /* List / Content */
-  items?: string[];
+  items?: NumberedItem[];
   listStyle?: "numeric" | "roman" | "alphabetic" | "hierarchy";
 
   /* Validation */

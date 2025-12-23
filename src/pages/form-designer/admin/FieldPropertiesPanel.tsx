@@ -29,7 +29,6 @@ const FieldPropertiesPanel: React.FC<Props> = ({
     }
 
     const cfg = FieldRegistry[field.type];
-
     /* ---------------- VALIDATION HELPERS ---------------- */
 
     const updateValidationRule = (rule: ValidationRule) => {
@@ -120,6 +119,189 @@ const FieldPropertiesPanel: React.FC<Props> = ({
                             Key must be unique across the form
                         </div>
                     )}
+                </>
+            )}
+            {field.type === "yesno" && (
+                <>
+                    <hr className="my-3" />
+                    <h6 className="small fw-bold">Default Selection</h6>
+
+                    <select
+                        className="form-control form-control-sm"
+                        value={field.defaultValue ?? ""}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                            onChange({
+                                defaultValue:
+                                    e.target.value === ""
+                                        ? undefined
+                                        : e.target.value,
+                            })
+                        }
+                    >
+                        <option value="">No default</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </>
+            )}
+            {field.type === "toggle" && (
+                <>
+                    <hr className="my-3" />
+                    <h6 className="small fw-bold">Default State</h6>
+
+                    <div className="form-check form-switch">
+                        <input
+                            type="checkbox"
+                            className="form-check-input"
+                            checked={!!field.defaultValue}
+                            disabled={readOnly}
+                            onChange={(e) =>
+                                onChange({ defaultValue: e.target.checked })
+                            }
+                        />
+                        <label className="form-check-label">
+                            Toggle ON by default
+                        </label>
+                    </div>
+                </>
+            )}
+            {/* ===================================================== */}
+            {/* NUMBERED (WITH SUBCLAUSE SUPPORT) */}
+            {/* ===================================================== */}
+            {field.type === "numbered" && (
+                <>
+                    <hr className="my-3" />
+                    <h6 className="small fw-bold">Numbered List</h6>
+
+                    {/* Number Style */}
+                    <label className="form-label">Number Style</label>
+                    <select
+                        className="form-control form-control-sm mb-3"
+                        value={field.listStyle || "numeric"}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                            onChange({
+                                listStyle: e.target.value as
+                                    | "numeric"
+                                    | "roman"
+                                    | "alphabetic",
+                            })
+                        }
+                    >
+                        <option value="numeric">1, 2, 3</option>
+                        <option value="roman">I, II, III</option>
+                        <option value="alphabetic">A, B, C</option>
+                    </select>
+
+                    {(field.items || []).map((item, idx) => (
+                        <div key={item.id} className="border rounded p-2 mb-2">
+
+                            {/* MAIN CLAUSE */}
+                            <div className="d-flex gap-1 mb-2">
+                                <input
+                                    className="form-control form-control-sm"
+                                    value={item.text}
+                                    disabled={readOnly}
+                                    placeholder={`Clause ${idx + 1}`}
+                                    onChange={(e) => {
+                                        const items = [...(field.items || [])];
+                                        items[idx] = { ...item, text: e.target.value };
+                                        onChange({ items });
+                                    }}
+                                />
+
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-danger"
+                                    disabled={readOnly}
+                                    onClick={() => {
+                                        const items = [...(field.items || [])];
+                                        items.splice(idx, 1);
+                                        onChange({ items });
+                                    }}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* SUBCLAUSES */}
+                            {(item.subItems || []).map((sub, sIdx) => (
+                                <div
+                                    key={sub.id}
+                                    className="d-flex gap-1 ms-4 mb-1 align-items-center"
+                                >
+                                    <input
+                                        className="form-control form-control-sm"
+                                        value={sub.text}
+                                        disabled={readOnly}
+                                        placeholder={`Sub-clause ${idx + 1}.${sIdx + 1}`}
+                                        onChange={(e) => {
+                                            const items = [...(field.items || [])];
+                                            const subItems = [...(item.subItems || [])];
+                                            subItems[sIdx] = { ...sub, text: e.target.value };
+                                            items[idx] = { ...item, subItems };
+                                            onChange({ items });
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-outline-danger"
+                                        disabled={readOnly}
+                                        onClick={() => {
+                                            const items = [...(field.items || [])];
+                                            const subItems = [...(item.subItems || [])];
+                                            subItems.splice(sIdx, 1);
+                                            items[idx] = { ...item, subItems };
+                                            onChange({ items });
+                                        }}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+
+                            {/* ADD SUBCLAUSE */}
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-outline-secondary ms-4"
+                                disabled={readOnly}
+                                onClick={() => {
+                                    const items = [...(field.items || [])];
+                                    const subItems = [...(item.subItems || [])];
+                                    subItems.push({
+                                        id: crypto.randomUUID(),
+                                        text: "New sub-clause",
+                                    });
+                                    items[idx] = { ...item, subItems };
+                                    onChange({ items });
+                                }}
+                            >
+                                + Add Sub-clause
+                            </button>
+                        </div>
+                    ))}
+
+                    {/* ADD CLAUSE */}
+                    <button
+                        type="button"
+                        className="btn btn-sm btn-outline-primary w-100"
+                        disabled={readOnly}
+                        onClick={() =>
+                            onChange({
+                                items: [
+                                    ...(field.items || []),
+                                    {
+                                        id: crypto.randomUUID(),
+                                        text: "New clause",
+                                        subItems: [],
+                                    },
+                                ],
+                            })
+                        }
+                    >
+                        + Add Clause
+                    </button>
                 </>
             )}
 

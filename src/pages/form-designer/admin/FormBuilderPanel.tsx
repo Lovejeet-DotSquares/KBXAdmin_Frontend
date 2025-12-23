@@ -13,47 +13,42 @@ import {
 } from "react-icons/fa";
 
 /* ----------------------------------------------
-   PALETTE CATEGORIES
+   PALETTE CONFIG
 ---------------------------------------------- */
 const categories = [
     {
         title: "Basic Fields",
         items: [
-            { type: "text", label: "Text Input", icon: <FaPen /> },
+            { type: "text", label: "Text", icon: <FaPen /> },
             { type: "number", label: "Number", icon: <FaClipboard /> },
             { type: "date", label: "Date", icon: <FaCalendarAlt /> },
             { type: "email", label: "Email", icon: <FaEnvelope /> },
             { type: "phone", label: "Phone", icon: <FaPhone /> },
-
-            // ✅ NEW
             { type: "select", label: "Dropdown", icon: <FaList /> },
             { type: "multiselect", label: "Multi Select", icon: <FaCheckSquare /> },
-            { type: "toggle", label: "Toggle Switch", icon: <FaToggleOn /> },
-
+            { type: "toggle", label: "Toggle", icon: <FaToggleOn /> },
             { type: "yesno", label: "Yes / No", icon: <FaToggleOn /> },
-            { type: "file", label: "File Upload", icon: <FaUpload /> },
+            { type: "file", label: "File", icon: <FaUpload /> },
         ],
     },
-
     {
-        title: "Document Content",
+        title: "Document",
         items: [
             { type: "heading1", label: "Title", icon: <FaHeading /> },
-            { type: "heading2", label: "Section Heading", icon: <FaHeading /> },
+            { type: "heading2", label: "Section", icon: <FaHeading /> },
             { type: "paragraph", label: "Paragraph", icon: <FaParagraph /> },
-            { type: "numbered", label: "Numbered Clause", icon: <FaListOl /> },
-            { type: "label", label: "Static Label", icon: <FaFileAlt /> },
-            { type: "html", label: "Rich Text Block", icon: <FaCode /> },
+            { type: "numbered", label: "Clause", icon: <FaListOl /> },
+            { type: "label", label: "Label", icon: <FaFileAlt /> },
+            { type: "html", label: "Rich Text", icon: <FaCode /> },
             { type: "pagebreak", label: "Page Break", icon: <FaRedo /> },
         ],
     },
-
     {
-        title: "Legal & Structured",
+        title: "Legal",
         items: [
-            { type: "table", label: "Table (Assets / Witness)", icon: <FaTable /> },
+            { type: "table", label: "Table", icon: <FaTable /> },
             { type: "signature", label: "Signature", icon: <FaSignature /> },
-            { type: "image", label: "Image (Stamp / Logo)", icon: <FaImages /> },
+            { type: "image", label: "Image", icon: <FaImages /> },
         ],
     },
 ];
@@ -62,7 +57,7 @@ const categories = [
    TILE
 ---------------------------------------------- */
 const Tile = ({ item, onAddField }: any) => {
-    const { setNodeRef, listeners, attributes } = useDraggable({
+    const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
         id: `palette:${item.type}`,
         data: { type: "palette", fieldType: item.type },
     });
@@ -74,28 +69,45 @@ const Tile = ({ item, onAddField }: any) => {
             {...attributes}
             onClick={() => onAddField(item.type)}
             style={{
-                padding: 12,
-                borderRadius: 14,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 10px",
+                borderRadius: 10,
+                fontSize: 12,
                 background: "#fff",
-                border: "1px solid #e5e7eb",
+                border: "1px solid #e6e8ef",
                 cursor: "grab",
-                transition: ".25s",
-                boxShadow: "0 2px 6px rgba(0,0,0,.06)",
+                userSelect: "none",
+                opacity: isDragging ? 0.6 : 1,
+                transition: "all .15s ease",
             }}
             onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#ffffff";
-                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.06)";
-                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.borderColor = "#4a68f0";
+                e.currentTarget.style.background = "#f4f6ff";
             }}
             onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(248, 249, 255, 0.9)";
-                e.currentTarget.style.boxShadow = "none";
-                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.borderColor = "#e6e8ef";
+                e.currentTarget.style.background = "#fff";
             }}
         >
-            <span style={{ fontSize: 16, marginRight: 8, color: "#4a68f0" }}>
+            <div
+                style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: 8,
+                    background: "#eef2ff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#4a68f0",
+                    fontSize: 13,
+                    flexShrink: 0,
+                }}
+            >
                 {item.icon}
-            </span>
+            </div>
+
             <span style={{ fontWeight: 500, color: "#222" }}>
                 {item.label}
             </span>
@@ -110,20 +122,22 @@ const FormBuilderPanel: React.FC<{ onAddField: (type: string) => void }> = ({ on
     const [search, setSearch] = useState("");
 
     return (
-        <div style={{ padding: 12 }}>
-            <Form.Control
-                size="sm"
-                placeholder="Search..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{
-                    borderRadius: 30,
-                    padding: "8px 14px",
-                    marginBottom: 20,
-                    fontSize: 13,
-                    border: "1px solid #dcdcdc",
-                }}
-            />
+        <div style={{ padding: 10 }}>
+            {/* Sticky Search */}
+            <div style={{ position: "sticky", top: 0, zIndex: 2, background: "#fff", paddingBottom: 8 }}>
+                <Form.Control
+                    size="sm"
+                    placeholder="Search field…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    style={{
+                        borderRadius: 20,
+                        padding: "6px 12px",
+                        fontSize: 12,
+                        border: "1px solid #dcdcdc",
+                    }}
+                />
+            </div>
 
             {categories.map(section => {
                 const visible = section.items.filter(i =>
@@ -132,14 +146,15 @@ const FormBuilderPanel: React.FC<{ onAddField: (type: string) => void }> = ({ on
                 if (!visible.length) return null;
 
                 return (
-                    <div key={section.title} style={{ marginBottom: 25 }}>
+                    <div key={section.title} style={{ marginTop: 14 }}>
                         <div
                             style={{
                                 fontSize: 10,
                                 fontWeight: 700,
                                 color: "#6c757d",
-                                marginBottom: 8,
-                                letterSpacing: 0.4,
+                                marginBottom: 6,
+                                letterSpacing: 0.5,
+                                textTransform: "uppercase",
                             }}
                         >
                             {section.title}
@@ -148,8 +163,8 @@ const FormBuilderPanel: React.FC<{ onAddField: (type: string) => void }> = ({ on
                         <div
                             style={{
                                 display: "grid",
-                                gridTemplateColumns: "repeat(3, 1fr)",
-                                gap: 8,
+                                gridTemplateColumns: "repeat(4, 1fr)",
+                                gap: 6,
                             }}
                         >
                             {visible.map(item => (

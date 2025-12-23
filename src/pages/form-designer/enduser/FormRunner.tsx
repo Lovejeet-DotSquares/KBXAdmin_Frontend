@@ -332,11 +332,21 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
             case "numbered":
                 return (
                     <ol style={{ listStyleType: getListStyle(field.listStyle) }}>
-                        {(field.items || []).map((item: string, idx: number) => (
-                            <li key={idx}>{item}</li>
+                        {(field.items || []).map((item: any) => (
+                            <li key={item.id}>
+                                {item.text}
+                                {item.subItems?.length > 0 && (
+                                    <ol style={{ listStyleType: "lower-alpha" }}>
+                                        {item.subItems.map((sub: any) => (
+                                            <li key={sub.id}>{sub.text}</li>
+                                        ))}
+                                    </ol>
+                                )}
+                            </li>
                         ))}
                     </ol>
                 );
+
 
             default:
                 return <div className="text-danger">Unsupported field</div>;

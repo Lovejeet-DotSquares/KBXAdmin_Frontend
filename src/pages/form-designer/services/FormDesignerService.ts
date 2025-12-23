@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import ApiUtility from "../../../api/ApiUtility";
 
 export const FormDesignerService = {

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useSortable, SortableContext } from "@dnd-kit/sortable";
+import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import SortableItem from "./SortableItem";
@@ -9,6 +9,7 @@ const UNIT_PX = 60;
 const ColumnContainer = ({
     rowId,
     column,
+    index,
     selectedFieldId,
     onResizeUnits,
     setSelectedField,
@@ -25,20 +26,12 @@ const ColumnContainer = ({
         isDragging,
     } = useSortable({
         id: `column:${column.id}`,
-        data: {
-            type: "column",
-            rowId,
-            colId: column.id,
-        },
+        data: { type: "column", rowId, index },
     });
 
     const { setNodeRef: setDropRef, isOver } = useDroppable({
-        id: `drop-col:${column.id}`,
-        data: {
-            type: "column-drop",
-            rowId,
-            colId: column.id,
-        },
+        id: `column-drop:${column.id}`,
+        data: { type: "column-drop", rowId, colId: column.id },
     });
 
     return (
@@ -47,13 +40,18 @@ const ColumnContainer = ({
             style={{
                 transform: CSS.Transform.toString(transform),
                 transition,
-                position: "relative",
                 flex: `${column.width} 0 0`,
                 minWidth: column.width * UNIT_PX,
-                background: "#f8fafc",
-                borderRadius: 12,
+                background: "#f9fafb",
+                borderRadius: 16,
                 border: "1px solid #e5e7eb",
-                opacity: isDragging ? 0.5 : 1,
+                boxShadow: isDragging
+                    ? "0 10px 30px rgba(0,0,0,.15)"
+                    : "0 4px 14px rgba(0,0,0,.08)",
+                opacity: isDragging ? 0.85 : 1,
+                display: "flex",
+                flexDirection: "column",
+                position: "relative",
             }}
         >
             {/* HEADER */}
@@ -61,14 +59,17 @@ const ColumnContainer = ({
                 {...attributes}
                 {...listeners}
                 style={{
-                    padding: "8px 10px",
+                    padding: "10px 12px",
                     borderBottom: "1px solid #e5e7eb",
                     display: "flex",
                     justifyContent: "space-between",
                     cursor: "grab",
+                    fontWeight: 600,
+                    background: "#fff",
+                    borderRadius: "16px 16px 0 0",
                 }}
             >
-                <strong className="small">Column</strong>
+                Column
                 <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => deleteColumn(rowId, column.id)}
@@ -77,22 +78,29 @@ const ColumnContainer = ({
                 </button>
             </div>
 
-            {/* FIELD DROP */}
+            {/* DROP ZONE */}
             <div
                 ref={setDropRef}
                 style={{
                     padding: 10,
-                    minHeight: 60,
-                    background: isOver ? "rgba(79,70,229,.08)" : "transparent",
+                    minHeight: 90,
+                    transition: "all .25s ease",
+                    background: isOver ? "rgba(99,102,241,.08)" : "transparent",
+                    borderRadius: 12,
+                    flexGrow: 1,
                 }}
             >
                 <SortableContext
                     items={column.fields.map((f: any) => `field:${f.id}`)}
+                    strategy={verticalListSortingStrategy}
                 >
-                    {column.fields.map((field: any) => (
+                    {column.fields.map((field: any, i: number) => (
                         <SortableItem
                             key={field.id}
                             field={field}
+                            rowId={rowId}
+                            colId={column.id}
+                            index={i}
                             selected={selectedFieldId === field.id}
                             onSelect={() => setSelectedField(field.id)}
                             onDelete={() => deleteField(field.id)}
@@ -100,9 +108,22 @@ const ColumnContainer = ({
                         />
                     ))}
                 </SortableContext>
+
+                {!column.fields.length && (
+                    <div
+                        style={{
+                            textAlign: "center",
+                            fontSize: 12,
+                            color: "#9ca3af",
+                            padding: 20,
+                        }}
+                    >
+                        Drop fields here
+                    </div>
+                )}
             </div>
 
-            {/* RESIZE */}
+            {/* RESIZE HANDLE */}
             <div
                 onMouseDown={(e) => {
                     e.preventDefault();
@@ -127,10 +148,10 @@ const ColumnContainer = ({
                 }}
                 style={{
                     position: "absolute",
-                    right: -4,
+                    right: -5,
                     top: 0,
                     bottom: 0,
-                    width: 8,
+                    width: 10,
                     cursor: "col-resize",
                 }}
             />

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState } from "react";
+import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Form } from "react-bootstrap";
 
@@ -65,20 +65,8 @@ const categories = [
 const Tile = ({ item, onAddField }: any) => {
     const { setNodeRef, listeners, attributes } = useDraggable({
         id: `palette:${item.type}`,
-        data: { from: "palette", fieldType: item.type },
+        data: { type: "palette", fieldType: item.type },
     });
-
-    const baseStyle: React.CSSProperties = {
-        padding: "10px 12px",
-        borderRadius: 14,
-        cursor: "grab",
-        background: "rgba(248, 249, 255, 0.9)",
-        transition: "0.25s ease",
-        border: "1px solid rgba(0,0,0,0.04)",
-        fontSize: 12,
-        display: "flex",
-        alignItems: "center",
-    };
 
     return (
         <div
@@ -86,7 +74,15 @@ const Tile = ({ item, onAddField }: any) => {
             {...listeners}
             {...attributes}
             onClick={() => onAddField(item.type)}
-            style={baseStyle}
+            style={{
+                padding: 12,
+                borderRadius: 14,
+                background: "#fff",
+                border: "1px solid #e5e7eb",
+                cursor: "grab",
+                transition: ".25s",
+                boxShadow: "0 2px 6px rgba(0,0,0,.06)",
+            }}
             onMouseEnter={(e) => {
                 e.currentTarget.style.background = "#ffffff";
                 e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.06)";
@@ -115,10 +111,10 @@ const FormBuilderPanel: React.FC<{ onAddField: (type: string) => void }> = ({ on
     const [search, setSearch] = useState("");
 
     return (
-        <div style={{ padding: 15 }}>
+        <div style={{ padding: 12 }}>
             <Form.Control
                 size="sm"
-                placeholder="Search fields..."
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
@@ -140,7 +136,7 @@ const FormBuilderPanel: React.FC<{ onAddField: (type: string) => void }> = ({ on
                     <div key={section.title} style={{ marginBottom: 25 }}>
                         <div
                             style={{
-                                fontSize: 13,
+                                fontSize: 10,
                                 fontWeight: 700,
                                 color: "#6c757d",
                                 marginBottom: 8,

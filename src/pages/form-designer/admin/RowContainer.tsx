@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useRef, useMemo, useEffect, useState } from "react";
-import { useDroppable } from "@dnd-kit/core";
+import { useRef, useEffect, useState } from "react";
 import {
     SortableContext,
     horizontalListSortingStrategy,
@@ -21,7 +20,7 @@ const RowContainer = ({
     deleteRow,
     deleteColumn,
     selectedFieldId,
-    onAddRowBelow
+    onAddRowBelow,
 }: any) => {
     const rowRef = useRef<HTMLDivElement | null>(null);
     const [rowWidth, setRowWidth] = useState(0);
@@ -35,91 +34,58 @@ const RowContainer = ({
         return () => obs.disconnect();
     }, []);
 
-    const { setNodeRef: setDropRef } = useDroppable({
-        id: `row:${row.id}`,
-    });
+    const { setNodeRef, attributes, listeners, transform, transition } =
+        useSortable({
+            id: `row:${row.id}`,
+            data: { type: "row", index },
+        });
 
-    const {
-        setNodeRef,
-        attributes,
-        listeners,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({
-        id: `row:${row.id}`,
-        data: { type: "row", rowId: row.id, index },
-    });
-
-    const style: React.CSSProperties = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.6 : 1,
-        background: "#fff",
-        borderRadius: 14,
-        padding: 12,
-        boxShadow: "0 4px 14px rgba(0,0,0,.08)",
-    };
-
-    const strategy = useMemo(() => {
-        return row.columns.length * 260 > rowWidth
+    const strategy =
+        row.columns.length * 260 > rowWidth
             ? verticalListSortingStrategy
             : horizontalListSortingStrategy;
-    }, [row.columns.length, rowWidth]);
 
     return (
         <div
             ref={(el) => {
                 setNodeRef(el);
-                setDropRef(el);
                 rowRef.current = el;
             }}
-            style={style}
+            style={{
+                transform: CSS.Transform.toString(transform),
+                transition,
+                background: "#fff",
+                borderRadius: 18,
+                padding: 14,
+                boxShadow: "0 8px 26px rgba(0,0,0,.12)",
+                marginBottom: 16,
+            }}
         >
-            {/* ROW HEADER */}
             <div
                 {...attributes}
                 {...listeners}
                 className="d-flex justify-content-between mb-3"
-                style={{ cursor: "grab" }}
+                style={{ cursor: "grab", fontWeight: 600 }}
             >
-                <strong>Row</strong>
+                Row
                 <div className="d-flex gap-2">
-                    <button
-                        className="btn btn-sm btn-outline-primary"
-                        onClick={() => onAddColumn(row.id)}
-                    >
-                        + Column
-                    </button>
-
-                    <button
-                        className="btn btn-sm btn-outline-success"
-                        onClick={() => onAddRowBelow(row.id)}
-                    >
-                        + Row
-                    </button>
-
-                    <button
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => deleteRow(row.id)}
-                    >
-                        Delete
-                    </button>
+                    <button className="btn btn-sm btn-outline-primary" onClick={() => onAddColumn(row.id)}>+ Column</button>
+                    <button className="btn btn-sm btn-outline-success" onClick={() => onAddRowBelow(row.id)}>+ Row</button>
+                    <button className="btn btn-sm btn-outline-danger" onClick={() => deleteRow(row.id)}>Delete</button>
                 </div>
-
             </div>
 
-            {/* COLUMNS */}
-            <div className="d-flex gap-2 align-items-stretch">
-                <SortableContext
-                    items={row.columns.map((c: any) => `column:${c.id}`)}
-                    strategy={strategy}
-                >
-                    {row.columns.map((col: any) => (
+            <SortableContext
+                items={row.columns.map((c: any) => `column:${c.id}`)}
+                strategy={strategy}
+            >
+                <div className="d-flex gap-3 flex-wrap">
+                    {row.columns.map((col: any, i: number) => (
                         <ColumnContainer
                             key={col.id}
                             rowId={row.id}
                             column={col}
+                            index={i}
                             selectedFieldId={selectedFieldId}
                             onResizeUnits={onResize}
                             setSelectedField={setSelectedField}
@@ -127,10 +93,9 @@ const RowContainer = ({
                             deleteField={deleteField}
                             deleteColumn={deleteColumn}
                         />
-
                     ))}
-                </SortableContext>
-            </div>
+                </div>
+            </SortableContext>
         </div>
     );
 };

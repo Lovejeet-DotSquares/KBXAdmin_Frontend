@@ -34,19 +34,20 @@ import FormRunner from "./enduser/FormRunner";
 import CommonLoader from "../../components/common/CommonLoader";
 import AutoSaveToast from "../../components/common/AutoSaveToast";
 
-import type { FormField, FieldType } from "./types/formTypes";
+import type { FieldType } from "./types/formTypes";
 import { FormDesignerService } from "./services/FormDesignerService";
+import { nanoid } from "nanoid";
 
 const FormDesignerPage: React.FC = () => {
     const { formId } = useParams<{ formId: string }>();
     const navigate = useNavigate();
-
+    const [activeDrag, setActiveDrag] = useState<any>(null);
+    const designer = useGridDesigner();
     const {
         rows,
         setRows,
         allFields,
         selected,
-        findFieldLocation,
         addRow,
         addRowBelow,
         addColumn,
@@ -56,27 +57,22 @@ const FormDesignerPage: React.FC = () => {
         duplicateField,
         setSelectedField,
         resizeColumnUnits,
-        moveFieldWithinColumn,
-        moveFieldBetweenColumns,
         removeRow,
         removeColumn,
-        moveRow,
-        moveColumn,
         undo,
         redo,
         canUndo,
         canRedo,
-    } = useGridDesigner();
+    } = designer;
 
     const [loading, setLoading] = useState(true);
     const [showPreview, setShowPreview] = useState(false);
     const [activeRightTab, setActiveRightTab] =
         useState<"properties" | "rules" | "json">("properties");
-    const [draggingField, setDraggingField] = useState<FormField | null>(null);
-    const [draggingPaletteType, setDraggingPaletteType] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
     const [autoSaving, setAutoSaving] = useState(false);
+
     /* ================= LOAD FORM ================= */
 
     useEffect(() => {
@@ -105,6 +101,7 @@ const FormDesignerPage: React.FC = () => {
             setRows(schema.rows || []);
             setLoading(false);
         })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formId]);
 
     /* ================= AUTOSAVE ================= */
@@ -113,7 +110,6 @@ const FormDesignerPage: React.FC = () => {
         formId!,
         async () => {
             if (loading || isPublishing || isSaving) return;
-
             try {
                 setAutoSaving(true);
                 await FormDesignerService.autoSave(
@@ -127,74 +123,73 @@ const FormDesignerPage: React.FC = () => {
         20000
     );
 
-
-
     /* ================= DND ================= */
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
     );
 
-    const handleDragStart = ({ active }: any) => {
-        const data = active?.data?.current;
-        if (!data) return;
 
-        if (data.type === "field") {
-            setDraggingField({ ...data.field });
-        }
 
-        if (data.type === "palette") {
-            setDraggingPaletteType(data.fieldType);
-        }
-    };
+    function handleDragEnd(event: any, designer: any) {
+        const { active, over } = event;
+        if (!over) return;
 
-    const handleDragEnd = ({ active, over }: any) => {
-        setDraggingField(null);
-        setDraggingPaletteType(null);
+        const A = active.data.current;
+        const O = over.data.current;
 
-        if (!active || !over || active.id === over.id) return;
-
-        const a = active.data?.current;
-        const o = over.data?.current;
-        if (!a || !o) return;
-
-        if (a.type === "palette" && o.type === "column-drop") {
-            addFieldToColumn(o.rowId, o.colId, {
-                id: crypto.randomUUID(),
-                key: `${a.fieldType}_${Date.now()}`,
-                label: a.fieldType,
-                type: a.fieldType as FieldType,
+        /* PALETTE → COLUMN */
+        if (A?.type === "palette" && O?.type === "column-drop") {
+            designer.addFieldToColumn(O.rowId, O.colId, {
+                id: nanoid(),
+                type: A.fieldType,
+                label: A.fieldType,
             });
+        }
+
+
+        /* FIELD → FIELD */
+        if (A?.type === "field" && O?.type === "field") {
+            if (A.rowId === O.rowId && A.colId === O.colId) {
+                designer.moveFieldWithinColumn(A.rowId, A.colId, A.index, O.index);
+            } else {
+                designer.moveFieldBetweenColumns(
+                    A.rowId,
+                    A.colId,
+                    A.index,
+                    O.rowId,
+                    O.colId,
+                    O.index
+                );
+            }
             return;
         }
 
-        if (a.type === "field" && o.type === "field") {
-            const src = findFieldLocation(a.fieldId);
-            const dst = findFieldLocation(o.fieldId);
-            if (!src || !dst) return;
-
-            if (src.colId === dst.colId) {
-                moveFieldWithinColumn(src.rowId, src.colId, src.index, dst.index);
-            } else {
-                moveFieldBetweenColumns(
-                    src.rowId,
-                    src.colId,
-                    src.index,
-                    dst.rowId,
-                    dst.colId,
-                    dst.index
-                );
-            }
+        /* FIELD → EMPTY COLUMN */
+        if (A?.type === "field" && O?.type === "column-drop") {
+            designer.moveFieldBetweenColumns(
+                A.rowId,
+                A.colId,
+                A.index,
+                O.rowId,
+                O.colId,
+                0
+            );
+            return;
         }
 
-        if (a.type === "column" && o.type === "column" && a.rowId === o.rowId) {
-            moveColumn(a.rowId, a.index, o.index);
+        /* COLUMN MOVE */
+        if (A?.type === "column" && O?.type === "column") {
+            designer.moveColumn(A.rowId, A.index, O.index);
+            return;
         }
 
-        if (a.type === "row" && o.type === "row") {
-            moveRow(a.index, o.index);
+        /* ROW MOVE */
+        if (A?.type === "row" && O?.type === "row") {
+            designer.moveRow(A.index, O.index);
         }
-    };
+    }
+
 
     const selectedFieldId = selected.type === "field" ? selected.id : null;
     const selectedField = useMemo(
@@ -227,10 +222,10 @@ const FormDesignerPage: React.FC = () => {
                     <Button disabled={!canRedo} onClick={redo}><FaRedo /></Button>
                 </ButtonGroup>
 
-                <ButtonGroup size="sm" >
+                <ButtonGroup size="sm">
                     <Button
-                        style={{ margin: 2 }}
                         variant="outline-primary"
+                        style={{ margin: 2 }}
                         disabled={isSaving || isPublishing}
                         onClick={async () => {
                             try {
@@ -247,24 +242,18 @@ const FormDesignerPage: React.FC = () => {
                         <FaSave /> Save Draft
                     </Button>
 
-
                     <Button
-                        style={{ margin: 2 }}
                         variant="success"
+                        style={{ margin: 2 }}
                         disabled={isSaving || isPublishing}
                         onClick={async () => {
                             try {
                                 setIsPublishing(true);
-
-                                // 1️⃣ Save final schema
                                 await FormDesignerService.saveDraft(
                                     formId!,
                                     JSON.stringify({ rows })
                                 );
-
-                                // 2️⃣ Publish
                                 await FormDesignerService.publishForm(formId!);
-
                                 navigate("/forms");
                             } finally {
                                 setIsPublishing(false);
@@ -274,11 +263,8 @@ const FormDesignerPage: React.FC = () => {
                         <FaUpload /> Publish
                     </Button>
 
-
-
                     <Button
                         style={{ margin: 2 }}
-
                         variant={showPreview ? "secondary" : "primary"}
                         onClick={() => setShowPreview((v) => !v)}
                     >
@@ -290,13 +276,17 @@ const FormDesignerPage: React.FC = () => {
             <DndContext
                 sensors={sensors}
                 collisionDetection={rectIntersection}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
+                onDragStart={(e) => setActiveDrag(e.active)}
+                onDragEnd={(e) => {
+                    setActiveDrag(null);
+                    handleDragEnd(e, designer);
+                }}
             >
+
                 <Row className="g-0" style={{ height: "calc(100vh - 48px)" }}>
                     <Col md={3} className="border-end bg-white">
                         <FormBuilderPanel
-                            onAddField={(type) => {
+                            onAddField={(type: any) => {
                                 if (!rows.length) addRow([12]);
                                 addFieldToColumn(
                                     rows[0].id,
@@ -315,7 +305,7 @@ const FormDesignerPage: React.FC = () => {
                     <Col md={6} className="bg-light p-3 overflow-auto">
                         {!showPreview ? (
                             <SortableContext
-                                items={rows.map((r) => r.id)}
+                                items={rows.map((r) => `row:${r.id}`)}
                                 strategy={verticalListSortingStrategy}
                             >
                                 {rows.map((r, i) => (
@@ -343,7 +333,11 @@ const FormDesignerPage: React.FC = () => {
                     </Col>
 
                     <Col md={3} className="border-start bg-white d-flex flex-column">
-                        <Nav variant="tabs" activeKey={activeRightTab} onSelect={(k) => setActiveRightTab(k as any)}>
+                        <Nav
+                            variant="tabs"
+                            activeKey={activeRightTab}
+                            onSelect={(k) => setActiveRightTab(k as any)}
+                        >
                             <Nav.Item><Nav.Link eventKey="properties">Properties</Nav.Link></Nav.Item>
                             <Nav.Item><Nav.Link eventKey="rules">Rules</Nav.Link></Nav.Item>
                             <Nav.Item><Nav.Link eventKey="json">JSON</Nav.Link></Nav.Item>
@@ -358,7 +352,6 @@ const FormDesignerPage: React.FC = () => {
                                     }
                                 />
                             )}
-
                             {activeRightTab === "rules" && (
                                 <RuleBuilderPanel
                                     field={selectedField}
@@ -368,7 +361,6 @@ const FormDesignerPage: React.FC = () => {
                                     }
                                 />
                             )}
-
                             {activeRightTab === "json" && (
                                 <JsonEnginePanel rows={rows} />
                             )}
@@ -377,21 +369,24 @@ const FormDesignerPage: React.FC = () => {
                 </Row>
 
                 <DragOverlay>
-                    {draggingField && (
-                        <Card className="p-2 shadow">
-                            <b>{draggingField.label}</b>
-                            <div className="small text-muted">{draggingField.type}</div>
-                        </Card>
-                    )}
-                    {draggingPaletteType && (
-                        <Card className="p-2 shadow">
-                            <b>{draggingPaletteType}</b>
-                        </Card>
+                    {activeDrag && (
+                        <div
+                            style={{
+                                padding: 10,
+                                background: "#6366f1",
+                                color: "#fff",
+                                borderRadius: 10,
+                                boxShadow: "0 10px 30px rgba(0,0,0,.25)",
+                            }}
+                        >
+                            {activeDrag.data.current?.fieldType || "Dragging"}
+                        </div>
                     )}
                 </DragOverlay>
-            </DndContext>
-            <AutoSaveToast visible={autoSaving} />
 
+            </DndContext>
+
+            <AutoSaveToast visible={autoSaving} />
         </Container>
     );
 };

@@ -191,6 +191,7 @@ export interface FormField {
     fontWeight?: "normal" | "bold" | "lighter";
     textColor?: string;
     textAlign?: "left" | "center" | "right";
+    fontFamily?: string;
   };
 }
 

@@ -47,7 +47,7 @@ const resolveVisibility = (field: any, values: any) => {
     return { visible, disabled };
 };
 
-/* ---------------- VALIDATION MAPPER (FIXED) ---------------- */
+/* ---------------- VALIDATION MAPPER ---------------- */
 
 const mapValidationRules = (rules: any[] = []) => {
     const out: any = {};
@@ -56,36 +56,20 @@ const mapValidationRules = (rules: any[] = []) => {
         if (r.type === "required") {
             out.required = r.message || "This field is required";
         }
-
         if (r.type === "min") {
-            out.min = {
-                value: r.value,
-                message: `Minimum value is ${r.value}`,
-            };
+            out.min = { value: r.value, message: `Minimum value is ${r.value}` };
         }
-
         if (r.type === "max") {
-            out.max = {
-                value: r.value,
-                message: `Maximum value is ${r.value}`,
-            };
+            out.max = { value: r.value, message: `Maximum value is ${r.value}` };
         }
-
         if (r.type === "length") {
             if (r.min !== undefined) {
-                out.minLength = {
-                    value: r.min,
-                    message: `Minimum length is ${r.min}`,
-                };
+                out.minLength = { value: r.min, message: `Minimum length is ${r.min}` };
             }
             if (r.max !== undefined) {
-                out.maxLength = {
-                    value: r.max,
-                    message: `Maximum length is ${r.max}`,
-                };
+                out.maxLength = { value: r.max, message: `Maximum length is ${r.max}` };
             }
         }
-
         if (r.type === "pattern") {
             out.pattern = {
                 value: new RegExp(r.regex),
@@ -97,7 +81,7 @@ const mapValidationRules = (rules: any[] = []) => {
     return out;
 };
 
-/* ---------------- DISPLAY-ONLY HELPERS ---------------- */
+/* ---------------- DISPLAY HELPERS ---------------- */
 
 const DISPLAY_ONLY_FIELDS = new Set([
     "heading1",
@@ -114,6 +98,7 @@ const isDisplayOnly = (field: any) =>
 const isRequired = (rules: any[] = []) =>
     rules.some((r) => r.type === "required");
 
+/* ✅ FONT FAMILY ADDED (ONLY CHANGE) */
 const getFieldStyle = (field: any) => ({
     fontSize: field.style?.fontSize
         ? `${field.style.fontSize}px`
@@ -121,6 +106,11 @@ const getFieldStyle = (field: any) => ({
     fontWeight: field.style?.fontWeight,
     color: field.style?.textColor,
     textAlign: field.style?.textAlign,
+    fontFamily:
+        field.style?.fontFamily &&
+            field.style.fontFamily !== "inherit"
+            ? field.style.fontFamily
+            : undefined,
 });
 
 /* ---------------- FORM RUNNER ---------------- */
@@ -146,9 +136,11 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
     const values = useWatch({ control });
 
     const getListStyle = (style?: string) =>
-        style === "roman" ? "upper-roman" :
-            style === "alphabetic" ? "lower-alpha" :
-                "decimal";
+        style === "roman"
+            ? "upper-roman"
+            : style === "alphabetic"
+                ? "lower-alpha"
+                : "decimal";
 
     /* ---------------- FIELD RENDERER ---------------- */
 
@@ -205,11 +197,7 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                             {field.placeholder || "Select an option"}
                         </option>
                         {field.options?.map((o: any) => (
-                            <option
-                                key={o.value}
-                                value={o.value}
-                                disabled={o.disabled}
-                            >
+                            <option key={o.value} value={o.value} disabled={o.disabled}>
                                 {o.label}
                             </option>
                         ))}
@@ -312,6 +300,7 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                         }}
                     />
                 );
+
             case "image":
                 return (
                     <Controller
@@ -319,7 +308,9 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                         control={control}
                         render={({ field: ctrl }) => (
                             <div className="border p-2">
-                                {ctrl.value && <img src={ctrl.value} className="img-fluid mb-2" />}
+                                {ctrl.value && (
+                                    <img src={ctrl.value} className="img-fluid mb-2" />
+                                )}
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -336,6 +327,7 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                         )}
                     />
                 );
+
             case "table":
                 return (
                     <Controller
@@ -377,7 +369,12 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
 
             case "numbered":
                 return (
-                    <ol style={{ listStyleType: getListStyle(field.listStyle) }}>
+                    <ol
+                        style={{
+                            listStyleType: getListStyle(field.listStyle),
+                            ...getFieldStyle(field),
+                        }}
+                    >
                         {(field.items || []).map((item: any) => (
                             <li key={item.id}>
                                 {item.text}
@@ -393,7 +390,6 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                     </ol>
                 );
 
-
             default:
                 return <div className="text-danger">Unsupported field</div>;
         }
@@ -408,16 +404,23 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                     {row.columns.map((col: any) => (
                         <div
                             key={col.id}
-                            style={{ flex: `${col.width} 0 0`, minWidth: col.width * UNIT_PX }}
+                            style={{
+                                flex: `${col.width} 0 0`,
+                                minWidth: col.width * UNIT_PX,
+                            }}
                         >
                             {col.fields.map((field: any) => {
-                                const { visible, disabled } = resolveVisibility(field, values);
+                                const { visible, disabled } =
+                                    resolveVisibility(field, values);
                                 if (!visible) return null;
 
                                 return (
                                     <div key={field.id} className="mb-3">
                                         {!isDisplayOnly(field) && field.label && (
-                                            <label className="form-label" style={getFieldStyle(field)}>
+                                            <label
+                                                className="form-label"
+                                                style={getFieldStyle(field)}
+                                            >
                                                 {field.label}
                                                 {isRequired(field.validationRules) && (
                                                     <span className="text-danger ms-1">*</span>
@@ -427,11 +430,13 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
 
                                         {renderField(field, disabled)}
 
-                                        {!isDisplayOnly(field) && field.key && errors[field.key] && (
-                                            <div className="text-danger small mt-1">
-                                                {(errors[field.key]?.message as string)}
-                                            </div>
-                                        )}
+                                        {!isDisplayOnly(field) &&
+                                            field.key &&
+                                            errors[field.key] && (
+                                                <div className="text-danger small mt-1">
+                                                    {errors[field.key]?.message as string}
+                                                </div>
+                                            )}
                                     </div>
                                 );
                             })}

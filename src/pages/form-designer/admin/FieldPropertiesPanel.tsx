@@ -98,7 +98,51 @@ const FieldPropertiesPanel: React.FC<Props> = ({
             />
             <hr className="my-3" />
             <h6 className="small fw-bold">Text Appearance</h6>
+            {/* FONT FAMILY */}
+            <label className="form-label">Font Family</label>
+            <select
+                className="form-control form-control-sm mb-2"
+                value={field.style?.fontFamily || "inherit"}
+                disabled={readOnly}
+                onChange={(e) => updateStyle({ fontFamily: e.target.value })}
+            >
+                <option value="inherit">Default (Inherit)</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="Helvetica, sans-serif">Helvetica</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="'Courier New', monospace">Courier New</option>
+                <option value="monospace">Monospace</option>
+            </select>
+            {/* ---------- CUSTOM FONT (OPTIONAL) ---------- */}
+            <input
+                className="form-control form-control-sm mb-2"
+                placeholder="Custom font-family (e.g. 'Poppins', sans-serif)"
+                value={
+                    field.style?.fontFamily &&
+                        field.style.fontFamily !== "inherit"
+                        ? field.style.fontFamily
+                        : ""
+                }
+                disabled={readOnly}
+                onChange={(e) =>
+                    updateStyle({
+                        fontFamily: e.target.value || "inherit",
+                    })
+                }
+            />
 
+            {/* ---------- FONT SIZE ---------- */}
+            <label className="form-label">Font Size (px)</label>
+            <input
+                type="number"
+                className="form-control form-control-sm mb-2"
+                value={field.style?.fontSize || ""}
+                disabled={readOnly}
+                onChange={(e) =>
+                    updateStyle({ fontSize: Number(e.target.value) })
+                }
+            />
             {/* FONT SIZE */}
             <label className="form-label">Font Size (px)</label>
             <input

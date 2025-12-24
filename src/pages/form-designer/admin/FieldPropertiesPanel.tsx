@@ -27,6 +27,14 @@ const FieldPropertiesPanel: React.FC<Props> = ({
     if (!field) {
         return <div className="p-3 text-muted small">Select a field</div>;
     }
+    const updateStyle = (patch: Partial<FormField["style"]>) => {
+        onChange({
+            style: {
+                ...(field.style || {}),
+                ...patch,
+            },
+        });
+    };
 
     const cfg = FieldRegistry[field.type];
     /* ---------------- VALIDATION HELPERS ---------------- */
@@ -88,6 +96,69 @@ const FieldPropertiesPanel: React.FC<Props> = ({
                 disabled={readOnly}
                 onChange={(e) => onChange({ label: e.target.value })}
             />
+            <hr className="my-3" />
+            <h6 className="small fw-bold">Text Appearance</h6>
+
+            {/* FONT SIZE */}
+            <label className="form-label">Font Size (px)</label>
+            <input
+                type="number"
+                className="form-control form-control-sm mb-2"
+                value={field.style?.fontSize || ""}
+                disabled={readOnly}
+                onChange={(e) =>
+                    updateStyle({ fontSize: Number(e.target.value) })
+                }
+            />
+
+            {/* FONT WEIGHT */}
+            <label className="form-label">Font Weight</label>
+            <select
+                className="form-control form-control-sm mb-2"
+                value={field.style?.fontWeight || "normal"}
+                disabled={readOnly}
+                onChange={(e) =>
+                    updateStyle({
+                        fontWeight: e.target.value as
+                            | "normal"
+                            | "bold"
+                            | "lighter",
+                    })
+                }
+            >
+                <option value="normal">Normal</option>
+                <option value="bold">Bold</option>
+                <option value="lighter">Light</option>
+            </select>
+
+            {/* TEXT COLOR */}
+            <label className="form-label">Text Color</label>
+            <input
+                type="color"
+                className="form-control form-control-sm mb-2"
+                value={field.style?.textColor || "#000000"}
+                disabled={readOnly}
+                onChange={(e) =>
+                    updateStyle({ textColor: e.target.value })
+                }
+            />
+
+            {/* ALIGNMENT */}
+            <label className="form-label">Text Alignment</label>
+            <select
+                className="form-control form-control-sm"
+                value={field.style?.textAlign || "left"}
+                disabled={readOnly}
+                onChange={(e) =>
+                    updateStyle({
+                        textAlign: e.target.value as "left" | "center" | "right",
+                    })
+                }
+            >
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+            </select>
 
             {/* ---------- HELP TEXT ---------- */}
             <label className="form-label">Help / Description</label>
@@ -310,14 +381,47 @@ const FieldPropertiesPanel: React.FC<Props> = ({
             {cfg?.hasDefault && (
                 <>
                     <label className="form-label">Default Value</label>
-                    <input
-                        className="form-control form-control-sm mb-2"
-                        value={field.defaultValue ?? ""}
-                        disabled={readOnly}
-                        onChange={(e) => onChange({ defaultValue: e.target.value })}
-                    />
+
+                    {/* DATE */}
+                    {field.type === "date" && (
+                        <input
+                            type="date"
+                            className="form-control form-control-sm mb-2"
+                            value={field.defaultValue || ""}
+                            disabled={readOnly}
+                            onChange={(e) =>
+                                onChange({ defaultValue: e.target.value })
+                            }
+                        />
+                    )}
+
+                    {/* NUMBER */}
+                    {field.type === "number" && (
+                        <input
+                            type="number"
+                            className="form-control form-control-sm mb-2"
+                            value={field.defaultValue ?? ""}
+                            disabled={readOnly}
+                            onChange={(e) =>
+                                onChange({ defaultValue: Number(e.target.value) })
+                            }
+                        />
+                    )}
+
+                    {/* TEXT / FALLBACK */}
+                    {!["date", "number"].includes(field.type) && (
+                        <input
+                            className="form-control form-control-sm mb-2"
+                            value={field.defaultValue ?? ""}
+                            disabled={readOnly}
+                            onChange={(e) =>
+                                onChange({ defaultValue: e.target.value })
+                            }
+                        />
+                    )}
                 </>
             )}
+
 
             {/* ---------- STATE ---------- */}
             <div className="form-check mt-2">

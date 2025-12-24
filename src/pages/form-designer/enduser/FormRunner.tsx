@@ -26,11 +26,7 @@ const resolveVisibility = (field: any, values: any) => {
     let visible = !field.hidden;
     let disabled = !!field.disabled;
 
-    if (!field.visibilityConditions?.length) {
-        return { visible, disabled };
-    }
-
-    field.visibilityConditions.forEach((group: any) => {
+    field.visibilityConditions?.forEach((group: any) => {
         const results = group.conditions.map((c: any) =>
             evaluateCondition(values[c.fieldKey], c.operator, c.value)
         );
@@ -51,17 +47,81 @@ const resolveVisibility = (field: any, values: any) => {
     return { visible, disabled };
 };
 
+/* ---------------- VALIDATION MAPPER (FIXED) ---------------- */
+
 const mapValidationRules = (rules: any[] = []) => {
     const out: any = {};
+
     rules.forEach((r) => {
-        if (r.type === "required") out.required = r.message || true;
-        if (r.type === "min") out.min = r.value;
-        if (r.type === "max") out.max = r.value;
-        if (r.type === "length") out.maxLength = r.max;
-        if (r.type === "pattern") out.pattern = new RegExp(r.regex);
+        if (r.type === "required") {
+            out.required = r.message || "This field is required";
+        }
+
+        if (r.type === "min") {
+            out.min = {
+                value: r.value,
+                message: `Minimum value is ${r.value}`,
+            };
+        }
+
+        if (r.type === "max") {
+            out.max = {
+                value: r.value,
+                message: `Maximum value is ${r.value}`,
+            };
+        }
+
+        if (r.type === "length") {
+            if (r.min !== undefined) {
+                out.minLength = {
+                    value: r.min,
+                    message: `Minimum length is ${r.min}`,
+                };
+            }
+            if (r.max !== undefined) {
+                out.maxLength = {
+                    value: r.max,
+                    message: `Maximum length is ${r.max}`,
+                };
+            }
+        }
+
+        if (r.type === "pattern") {
+            out.pattern = {
+                value: new RegExp(r.regex),
+                message: r.message || "Invalid format",
+            };
+        }
     });
+
     return out;
 };
+
+/* ---------------- DISPLAY-ONLY HELPERS ---------------- */
+
+const DISPLAY_ONLY_FIELDS = new Set([
+    "heading1",
+    "heading2",
+    "paragraph",
+    "label",
+    "pagebreak",
+    "numbered",
+]);
+
+const isDisplayOnly = (field: any) =>
+    DISPLAY_ONLY_FIELDS.has(field.type);
+
+const isRequired = (rules: any[] = []) =>
+    rules.some((r) => r.type === "required");
+
+const getFieldStyle = (field: any) => ({
+    fontSize: field.style?.fontSize
+        ? `${field.style.fontSize}px`
+        : undefined,
+    fontWeight: field.style?.fontWeight,
+    color: field.style?.textColor,
+    textAlign: field.style?.textAlign,
+});
 
 /* ---------------- FORM RUNNER ---------------- */
 
@@ -75,22 +135,22 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
             )
         )
     );
-    const getListStyle = (style?: string) => {
-        switch (style) {
-            case "roman":
-                return "upper-roman";
-            case "alphabetic":
-                return "lower-alpha";
-            default:
-                return "decimal";
-        }
-    };
 
-    const { register, handleSubmit, control } = useForm({
-        defaultValues,
-    });
+    const {
+        register,
+        handleSubmit,
+        control,
+        formState: { errors },
+    } = useForm({ defaultValues });
 
     const values = useWatch({ control });
+
+    const getListStyle = (style?: string) =>
+        style === "roman" ? "upper-roman" :
+            style === "alphabetic" ? "lower-alpha" :
+                "decimal";
+
+    /* ---------------- FIELD RENDERER ---------------- */
 
     const renderField = (field: any, disabled: boolean) => {
         const name = field.key || field.id;
@@ -107,6 +167,7 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                         disabled={disabled}
                         readOnly={field.readonly}
                         className="form-control"
+                        style={getFieldStyle(field)}
                     />
                 );
 
@@ -117,6 +178,7 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                         {...register(name, rules)}
                         disabled={disabled}
                         className="form-control"
+                        style={getFieldStyle(field)}
                     />
                 );
 
@@ -124,9 +186,10 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                 return (
                     <input
                         type="date"
-                        {...register(name)}
+                        {...register(name, rules)}
                         disabled={disabled}
                         className="form-control"
+                        style={getFieldStyle(field)}
                     />
                 );
 
@@ -136,7 +199,7 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                         {...register(name, rules)}
                         disabled={disabled}
                         className="form-control"
-                        defaultValue={field.defaultValue ?? ""}
+                        style={getFieldStyle(field)}
                     >
                         <option value="" disabled>
                             {field.placeholder || "Select an option"}
@@ -152,7 +215,6 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                         ))}
                     </select>
                 );
-
 
             case "multiselect":
                 return (
@@ -172,33 +234,24 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                     />
                 );
 
-
-
             case "toggle":
             case "yesno":
                 return (
                     <div className="d-flex gap-3">
-                        <div className="form-check">
-                            <input
-                                type="radio"
-                                value="yes"
-                                {...register(name, rules)}
-                                disabled={disabled}
-                                className="form-check-input"
-                            />
-                            <label className="form-check-label">Yes</label>
-                        </div>
-
-                        <div className="form-check">
-                            <input
-                                type="radio"
-                                value="no"
-                                {...register(name, rules)}
-                                disabled={disabled}
-                                className="form-check-input"
-                            />
-                            <label className="form-check-label">No</label>
-                        </div>
+                        {["yes", "no"].map((v) => (
+                            <div key={v} className="form-check">
+                                <input
+                                    type="radio"
+                                    value={v}
+                                    {...register(name, rules)}
+                                    disabled={disabled}
+                                    className="form-check-input"
+                                />
+                                <label className="form-check-label">
+                                    {v.toUpperCase()}
+                                </label>
+                            </div>
+                        ))}
                     </div>
                 );
 
@@ -206,7 +259,7 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                 return (
                     <input
                         type="file"
-                        {...register(name)}
+                        {...register(name, rules)}
                         disabled={disabled}
                         multiple={!!field.multiple}
                         accept={field.accept || "*"}
@@ -224,13 +277,7 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                                 apiKey="no-api-key"
                                 value={ctrl.value || ""}
                                 onEditorChange={ctrl.onChange}
-                                init={{
-                                    height: 250,
-                                    menubar: false,
-                                    plugins: "lists link table code",
-                                    toolbar:
-                                        "undo redo | bold italic | bullist numlist | table | code",
-                                }}
+                                init={{ height: 250, menubar: false }}
                             />
                         )}
                     />
@@ -244,7 +291,7 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                         render={({ field: ctrl }) => {
                             let ref: any;
                             return (
-                                <div className="border p-2" style={{ pointerEvents: disabled ? "none" : "auto" }}>
+                                <div className="border p-2">
                                     <SignatureCanvas
                                         ref={(r) => { (ref = r) }}
                                         canvasProps={{ className: "w-100", height: 150 }}
@@ -265,7 +312,6 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                         }}
                     />
                 );
-
             case "image":
                 return (
                     <Controller
@@ -290,7 +336,6 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                         )}
                     />
                 );
-
             case "table":
                 return (
                     <Controller
@@ -324,11 +369,12 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                     />
                 );
 
-            case "heading1": return <h1>{field.label}</h1>;
-            case "heading2": return <h3>{field.label}</h3>;
-            case "paragraph": return <p>{field.label}</p>;
-            case "label": return <div>{field.label}</div>;
+            case "heading1": return <h1 style={getFieldStyle(field)}>{field.label}</h1>;
+            case "heading2": return <h3 style={getFieldStyle(field)}>{field.label}</h3>;
+            case "paragraph": return <p style={getFieldStyle(field)}>{field.label}</p>;
+            case "label": return <div style={getFieldStyle(field)}>{field.label}</div>;
             case "pagebreak": return <hr />;
+
             case "numbered":
                 return (
                     <ol style={{ listStyleType: getListStyle(field.listStyle) }}>
@@ -353,6 +399,8 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
         }
     };
 
+    /* ---------------- RENDER ---------------- */
+
     return (
         <form onSubmit={handleSubmit(console.log)}>
             {rows.map((row) => (
@@ -368,15 +416,30 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
 
                                 return (
                                     <div key={field.id} className="mb-3">
+                                        {!isDisplayOnly(field) && field.label && (
+                                            <label className="form-label" style={getFieldStyle(field)}>
+                                                {field.label}
+                                                {isRequired(field.validationRules) && (
+                                                    <span className="text-danger ms-1">*</span>
+                                                )}
+                                            </label>
+                                        )}
+
                                         {renderField(field, disabled)}
+
+                                        {!isDisplayOnly(field) && field.key && errors[field.key] && (
+                                            <div className="text-danger small mt-1">
+                                                {(errors[field.key]?.message as string)}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
-
                         </div>
                     ))}
                 </div>
             ))}
+
             <button className="btn btn-success">Submit</button>
         </form>
     );

@@ -163,7 +163,7 @@ const FormBuilderPanel: React.FC<{ onAddField: (type: string) => void }> = ({ on
                         <div
                             style={{
                                 display: "grid",
-                                gridTemplateColumns: "repeat(4, 1fr)",
+                                gridTemplateColumns: "repeat(3, 1fr)",
                                 gap: 6,
                             }}
                         >

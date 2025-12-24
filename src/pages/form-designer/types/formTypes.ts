@@ -186,6 +186,12 @@ export interface FormField {
   multiple?: any;
   optionsMode?: "master" | "manual";
   masterOptionsKey?: "yesno" | "boolean";
+  style?: {
+    fontSize?: number;
+    fontWeight?: "normal" | "bold" | "lighter";
+    textColor?: string;
+    textAlign?: "left" | "center" | "right";
+  };
 }
 
 /* ------------------------------------

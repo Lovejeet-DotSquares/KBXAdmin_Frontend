@@ -44,6 +44,29 @@ export default function useGridDesigner() {
     setUndoStack((u) => [...u, snapshot()]);
     setRedoStack([]);
   };
+  const ensureTable = (field: FormField): FormField => {
+    if (field.type !== "table") return field;
+    if (field.table) return field;
+
+    return {
+      ...field,
+      table: {
+        columns: [
+          {
+            id: nanoid(),
+            label: "Column 1",
+            fieldType: "text",
+          },
+        ],
+        rowsData: [
+          {
+            id: nanoid(),
+            cells: {},
+          },
+        ],
+      },
+    };
+  };
 
   /* ================= ROWS ================= */
 
@@ -143,9 +166,11 @@ export default function useGridDesigner() {
   };
 
   /* ================= FIELDS ================= */
-
   const addFieldToColumn = (rowId: string, colId: string, field: FormField) => {
     pushHistory();
+
+    const safeField = ensureTable(field);
+
     setRows((prev) =>
       prev.map((r) =>
         r.id !== rowId
@@ -153,23 +178,25 @@ export default function useGridDesigner() {
           : {
               ...r,
               columns: r.columns.map((c) =>
-                c.id !== colId ? c : { ...c, fields: [...c.fields, field] }
+                c.id !== colId ? c : { ...c, fields: [...c.fields, safeField] }
               ),
             }
       )
     );
-    setSelectedState({ type: "field", id: field.id });
+
+    setSelectedState({ type: "field", id: safeField.id });
   };
 
   const updateField = (fieldId: string, patch: Partial<FormField>) => {
     pushHistory();
+
     setRows((prev) =>
       prev.map((r) => ({
         ...r,
         columns: r.columns.map((c) => ({
           ...c,
           fields: c.fields.map((f) =>
-            f.id === fieldId ? { ...f, ...patch } : f
+            f.id === fieldId ? ensureTable({ ...f, ...patch }) : f
           ),
         })),
       }))
@@ -192,6 +219,7 @@ export default function useGridDesigner() {
 
   const duplicateField = (fieldId: string) => {
     pushHistory();
+
     setRows((prev) =>
       prev.map((r) => ({
         ...r,
@@ -199,11 +227,15 @@ export default function useGridDesigner() {
           const i = c.fields.findIndex((f) => f.id === fieldId);
           if (i === -1) return c;
 
-          const copy = {
-            ...c.fields[i],
-            id: makeId(),
-            label: `${c.fields[i].label} (copy)`,
-          };
+          const original = c.fields[i];
+
+          const copy: FormField = ensureTable(
+            structuredClone({
+              ...original,
+              id: makeId(),
+              label: `${original.label} (copy)`,
+            })
+          );
 
           const arr = [...c.fields];
           arr.splice(i + 1, 0, copy);
@@ -353,7 +385,7 @@ export default function useGridDesigner() {
 
     moveColumn,
     moveRow,
-
+    ensureTable,
     selected,
     setSelectedField: (id: string | null) =>
       setSelectedState(id ? { type: "field", id } : { type: "none" }),

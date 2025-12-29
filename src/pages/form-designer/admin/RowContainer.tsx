@@ -37,7 +37,7 @@ const RowContainer = ({
     const { setNodeRef, attributes, listeners, transform, transition } =
         useSortable({
             id: `row:${row.id}`,
-            data: { type: "row", index },
+            data: { type: "row", index, rowId: row.id },
         });
 
     const strategy =
@@ -69,9 +69,24 @@ const RowContainer = ({
             >
                 Row
                 <div className="d-flex gap-2">
-                    <button className="btn btn-sm btn-outline-primary" onClick={() => onAddColumn(row.id)}>+ Column</button>
-                    <button className="btn btn-sm btn-outline-success" onClick={() => onAddRowBelow(row.id)}>+ Row</button>
-                    <button className="btn btn-sm btn-outline-danger" onClick={() => deleteRow(row.id)}>Delete</button>
+                    <button
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => onAddColumn(row.id)}
+                    >
+                        + Column
+                    </button>
+                    <button
+                        className="btn btn-sm btn-outline-success"
+                        onClick={() => onAddRowBelow(row.id)}
+                    >
+                        + Row
+                    </button>
+                    <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => deleteRow(row.id)}
+                    >
+                        Delete
+                    </button>
                 </div>
             </div>
 

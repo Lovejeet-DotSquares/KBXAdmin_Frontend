@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+    useSortable,
+    SortableContext,
+    verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import SortableItem from "./SortableItem";
@@ -26,10 +30,13 @@ const ColumnContainer = ({
         isDragging,
     } = useSortable({
         id: `column:${column.id}`,
-        data: { type: "column", rowId, index },
+        data: { type: "column", rowId, colId: column.id, index },
     });
 
-    const { setNodeRef: setDropRef, isOver } = useDroppable({
+    const {
+        setNodeRef: setDropRef,
+        isOver,
+    } = useDroppable({
         id: `column-drop:${column.id}`,
         data: { type: "column-drop", rowId, colId: column.id },
     });
@@ -41,7 +48,7 @@ const ColumnContainer = ({
                 transform: CSS.Transform.toString(transform),
                 transition,
                 flex: `${column.width} 0 0`,
-                minWidth: column.width * UNIT_PX,
+                minWidth: Math.max(column.width, 1) * UNIT_PX,
                 background: "#f9fafb",
                 borderRadius: 16,
                 border: "1px solid #e5e7eb",
@@ -85,7 +92,9 @@ const ColumnContainer = ({
                     padding: 10,
                     minHeight: 90,
                     transition: "all .25s ease",
-                    background: isOver ? "rgba(99,102,241,.08)" : "transparent",
+                    background: isOver
+                        ? "rgba(99,102,241,.08)"
+                        : "transparent",
                     borderRadius: 12,
                     flexGrow: 1,
                 }}
@@ -131,9 +140,15 @@ const ColumnContainer = ({
                     let last = 0;
 
                     const move = (ev: MouseEvent) => {
-                        const units = Math.round((ev.clientX - startX) / UNIT_PX);
+                        const units = Math.round(
+                            (ev.clientX - startX) / UNIT_PX
+                        );
                         if (units !== last) {
-                            onResizeUnits(rowId, column.id, units - last);
+                            onResizeUnits(
+                                rowId,
+                                column.id,
+                                Math.max(units - last, -column.width + 1)
+                            );
                             last = units;
                         }
                     };

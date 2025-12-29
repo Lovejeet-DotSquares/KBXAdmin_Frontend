@@ -16,7 +16,7 @@ const SortableItem = ({
     const { setNodeRef, attributes, listeners, transform, transition } =
         useSortable({
             id: `field:${field.id}`,
-            data: { type: "field", rowId, colId, index },
+            data: { type: "field", rowId, colId, index, fieldId: field.id },
         });
 
     return (
@@ -37,10 +37,23 @@ const SortableItem = ({
             }}
         >
             <div className="d-flex justify-content-between align-items-center">
-                <strong style={{ fontSize: 13 }}>{field.label || field.type}</strong>
+                <strong style={{ fontSize: 13 }}>
+                    {field.label || field.type}
+                </strong>
+
                 <div className="d-flex gap-2 align-items-center">
-                    <FaCopy onClick={onDuplicate} />
-                    <FaTrash onClick={onDelete} />
+                    <FaCopy
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDuplicate();
+                        }}
+                    />
+                    <FaTrash
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete();
+                        }}
+                    />
                     <span {...listeners} style={{ cursor: "grab" }}>
                         <FaGripVertical />
                     </span>

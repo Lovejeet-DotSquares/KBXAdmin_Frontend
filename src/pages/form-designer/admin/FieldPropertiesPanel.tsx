@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
 import type {
     FormField,
@@ -609,6 +610,225 @@ const FieldPropertiesPanel: React.FC<Props> = ({
                     </div>
                 </>
             )}
+            {field.type === "table" && (
+                <>
+                    <hr className="my-3" />
+                    <h6 className="fw-bold small">Table Settings</h6>
+
+                    {/* SAFETY INIT (never breaks UI) */}
+                    {!field.table && (
+                        <div className="text-muted small mb-2">
+                            Initializing table configuration…
+                        </div>
+                    )}
+
+                    {field.table && (
+                        <>
+                            {/* ================= COLUMNS ================= */}
+                            <div className="fw-semibold small text-muted mb-2">Columns</div>
+
+                            {field.table.columns.map((col, colIndex) => (
+                                <div
+                                    key={col.id}
+                                    className="d-flex gap-2 mb-2 align-items-center"
+                                >
+                                    {/* LABEL */}
+                                    <input
+                                        className="form-control form-control-sm"
+                                        value={col.label}
+                                        disabled={readOnly}
+                                        onChange={(e) => {
+                                            const columns = [...field.table!.columns];
+                                            columns[colIndex] = {
+                                                ...col,
+                                                label: e.target.value,
+                                            };
+
+                                            onChange({
+                                                table: {
+                                                    ...field.table!,
+                                                    columns,
+                                                },
+                                            });
+                                        }}
+                                    />
+
+                                    {/* TYPE */}
+                                    <select
+                                        className="form-control form-control-sm"
+                                        value={col.fieldType}
+                                        disabled={readOnly}
+                                        onChange={(e) => {
+                                            const columns = [...field.table!.columns];
+                                            columns[colIndex] = {
+                                                ...col,
+                                                fieldType: e.target.value as "text" | "number" | "date",
+                                            };
+
+                                            onChange({
+                                                table: {
+                                                    ...field.table!,
+                                                    columns,
+                                                },
+                                            });
+                                        }}
+                                    >
+                                        <option value="text">Text</option>
+                                        <option value="number">Number</option>
+                                        <option value="date">Date</option>
+                                    </select>
+
+                                    {/* REMOVE COLUMN */}
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-outline-danger"
+                                        disabled={readOnly || field.table?.columns.length === 1}
+                                        onClick={() => {
+                                            const columns = field.table!.columns.filter(
+                                                (_, i) => i !== colIndex
+                                            );
+
+                                            const rowsData = (field.table!.rowsData || []).map((r) => {
+                                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                                const { [col.id]: _, ...cells } = r.cells;
+                                                return { ...r, cells };
+                                            });
+
+                                            onChange({
+                                                table: {
+                                                    ...field.table!,
+                                                    columns,
+                                                    rowsData,
+                                                },
+                                            });
+                                        }}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+
+                            {/* ADD COLUMN */}
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-outline-secondary w-100 mb-3"
+                                disabled={readOnly}
+                                onClick={() => {
+                                    const newColId = crypto.randomUUID();
+
+                                    onChange({
+                                        table: {
+                                            ...field.table!,
+                                            columns: [
+                                                ...field.table!.columns,
+                                                {
+                                                    id: newColId,
+                                                    label: `Column ${field.table!.columns.length + 1}`,
+                                                    fieldType: "text",
+                                                },
+                                            ],
+                                            rowsData: (field.table!.rowsData || []).map((r) => ({
+                                                ...r,
+                                                cells: {
+                                                    ...r.cells,
+                                                    [newColId]: "",
+                                                },
+                                            })),
+                                        },
+                                    });
+                                }}
+                            >
+                                + Add Column
+                            </button>
+
+                            {/* ================= ROWS ================= */}
+                            <div className="fw-semibold small text-muted mb-2">Rows</div>
+
+                            {(field.table.rowsData || [])?.map((row, rowIndex) => (
+                                <div key={row.id} className="border rounded p-2 mb-2">
+                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                        <span className="small fw-semibold">
+                                            Row {rowIndex + 1}
+                                        </span>
+
+                                        <button
+                                            type="button"
+                                            className="btn btn-sm btn-outline-danger"
+                                            disabled={readOnly || field.table!.rowsData!.length === 1}
+                                            onClick={() =>
+                                                onChange({
+                                                    table: {
+                                                        ...field.table!,
+                                                        rowsData: field.table!.rowsData!.filter(
+                                                            (r) => r.id !== row.id
+                                                        ),
+                                                    },
+                                                })
+                                            }
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+
+                                    {field.table?.columns?.map((c) => (
+                                        <input
+                                            key={c.id}
+                                            className="form-control form-control-sm mb-1"
+                                            placeholder={c.label}
+                                            value={row.cells[c.id] ?? ""}
+                                            disabled={readOnly}
+                                            onChange={(e) => {
+                                                const rowsData = [...field.table!.rowsData!];
+                                                rowsData[rowIndex] = {
+                                                    ...row,
+                                                    cells: {
+                                                        ...row.cells,
+                                                        [c.id]: e.target.value,
+                                                    },
+                                                };
+
+                                                onChange({
+                                                    table: {
+                                                        ...field.table!,
+                                                        rowsData,
+                                                    },
+                                                });
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            ))}
+
+                            {/* ADD ROW */}
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-outline-primary w-100"
+                                disabled={readOnly}
+                                onClick={() =>
+                                    onChange({
+                                        table: {
+                                            ...field.table!,
+                                            rowsData: [
+                                                ...(field.table!.rowsData || []),
+                                                {
+                                                    id: crypto.randomUUID(),
+                                                    cells: Object.fromEntries(
+                                                        field.table!.columns.map((c) => [c.id, ""])
+                                                    ),
+                                                },
+                                            ],
+                                        },
+                                    })
+                                }
+                            >
+                                + Add Row
+                            </button>
+                        </>
+                    )}
+                </>
+            )}
+
+
 
             {/* ---------- VALIDATIONS ---------- */}
             {cfg?.hasValidation && (
@@ -678,6 +898,7 @@ const FieldPropertiesPanel: React.FC<Props> = ({
                     )}
                 </>
             )}
+            {/* ---------- TABLE SETTINGS ---------- */}
 
             {/* ---------- VISIBILITY ---------- */}
             <hr className="my-3" />
@@ -746,6 +967,8 @@ const FieldPropertiesPanel: React.FC<Props> = ({
                     })
                 }
             />
+
+
         </div>
     );
 };

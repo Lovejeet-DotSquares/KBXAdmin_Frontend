@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 /* ------------------------------------
  * FIELD TYPE
  * ------------------------------------ */
 export type FieldType =
-  /* -------- INPUT -------- */
   | "text"
   | "textarea"
   | "number"
@@ -12,31 +10,22 @@ export type FieldType =
   | "phone"
   | "hidden"
   | "date"
-  /* -------- CHOICE -------- */
   | "select"
   | "multiselect"
   | "radio"
   | "checkbox"
   | "toggle"
   | "yesno"
-
-  /* -------- MEDIA -------- */
   | "file"
   | "image"
   | "signature"
-
-  /* -------- STATIC CONTENT -------- */
   | "label"
   | "paragraph"
-
-  /* -------- LAYOUT -------- */
   | "heading1"
   | "heading2"
   | "heading3"
   | "numbered"
   | "pagebreak"
-
-  /* -------- ADVANCED -------- */
   | "table"
   | "calculated";
 
@@ -51,18 +40,13 @@ export interface FieldOption {
 }
 
 /* ------------------------------------
- * VALIDATION RULES
+ * VALIDATION
  * ------------------------------------ */
 export type ValidationRule =
   | { type: "required"; message?: string }
   | { type: "min"; value: number; message?: string }
   | { type: "max"; value: number; message?: string }
-  | {
-      type: "length";
-      min?: number;
-      max?: number;
-      message?: string;
-    }
+  | { type: "length"; min?: number; max?: number; message?: string }
   | { type: "pattern"; regex: string; message?: string }
   | {
       type: "format";
@@ -71,21 +55,19 @@ export type ValidationRule =
     };
 
 /* ------------------------------------
- * VISIBILITY / STATE RULES
+ * VISIBILITY
  * ------------------------------------ */
-export type VisibilityOperator =
-  | "equals"
-  | "not_equals"
-  | "contains"
-  | "greater_than"
-  | "less_than"
-  | "is_empty"
-  | "is_not_empty";
-
 export interface VisibilityCondition {
   id: string;
   fieldKey: string;
-  operator: VisibilityOperator;
+  operator:
+    | "equals"
+    | "not_equals"
+    | "contains"
+    | "greater_than"
+    | "less_than"
+    | "is_empty"
+    | "is_not_empty";
   value?: any;
 }
 
@@ -93,60 +75,55 @@ export interface VisibilityGroup {
   id: string;
   logic: "AND" | "OR";
   conditions: VisibilityCondition[];
-
-  /** What to do when condition matches */
   action: "show" | "hide" | "enable" | "disable";
 }
 
 /* ------------------------------------
- * ACTION / WORKFLOW
+ * ACTIONS
  * ------------------------------------ */
 export interface FieldAction {
-  triggerClause?: boolean; // insert legal clause
-  actionFlowId?: string; // workflow / automation id
-  emitEvent?: string; // event name for engine
+  triggerClause?: boolean;
+  actionFlowId?: string;
 }
 
-/* ------------------------------------
- * TABLE CONFIG
- * ------------------------------------ */
 export interface TableColumn {
   id: string;
   label: string;
-  key: string;
-  type?: FieldType;
+  fieldType: "text" | "number" | "date";
+}
+
+export interface TableRow {
+  id: string;
+  cells: Record<string, any>; // key = columnId
 }
 
 export interface TableConfig {
   columns: TableColumn[];
-  allowAddRow?: boolean;
-  allowDeleteRow?: boolean;
-  minRows?: number;
-  maxRows?: number;
+  rowsData: TableRow[];
 }
+
+/* ------------------------------------
+ * NUMBERED LIST
+ * ------------------------------------ */
 export interface NumberedItem {
   id: string;
   text: string;
   subItems?: NumberedItem[];
 }
+
 /* ------------------------------------
- * FORM FIELD (CORE)
+ * FORM FIELD
  * ------------------------------------ */
 export interface FormField {
   id: string;
   type: FieldType;
 
-  /* Identity */
   key?: string;
   label?: string;
   placeholder?: string;
   helperText?: string;
-
-  /* Defaults */
   defaultValue?: any;
 
-  /* State */
-  required?: boolean;
   disabled?: boolean;
   readonly?: boolean;
   hidden?: boolean;
@@ -165,27 +142,21 @@ export interface FormField {
 
   /* List / Content */
   items?: NumberedItem[];
-  listStyle?: "numeric" | "roman" | "alphabetic" | "hierarchy";
+  listStyle?: "numeric" | "roman" | "alphabetic";
 
-  /* Validation */
   validationRules?: ValidationRule[];
-
-  /* Visibility & State Logic */
   visibilityConditions?: VisibilityGroup[];
-
-  /* Actions & Workflows */
   actions?: FieldAction;
 
-  /* Table */
-  tableConfig?: TableConfig;
+  table?: TableConfig;
 
-  /* Calculated */
+  accept?: string;
+  multiple?: boolean;
   formula?: string;
   dependencies?: string[];
-  accept?: any;
-  multiple?: any;
-  optionsMode?: "master" | "manual";
-  masterOptionsKey?: "yesno" | "boolean";
+  optionsMode?: "manual" | "master";
+  masterOptionsKey?: "yesno";
+
   style?: {
     fontSize?: number;
     fontWeight?: "normal" | "bold" | "lighter";

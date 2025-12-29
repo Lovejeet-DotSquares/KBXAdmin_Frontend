@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Form } from "react-bootstrap";
-
 import {
     FaPen, FaClipboard, FaToggleOn,
     FaCalendarAlt, FaUpload, FaFileAlt, FaImages, FaTable,
@@ -11,6 +10,7 @@ import {
     FaRedo,
     FaList, FaCheckSquare
 } from "react-icons/fa";
+import TableConfigModal from "./TableDesignerModal";
 
 /* ----------------------------------------------
    PALETTE CONFIG
@@ -56,7 +56,7 @@ const categories = [
 /* ----------------------------------------------
    TILE
 ---------------------------------------------- */
-const Tile = ({ item, onAddField }: any) => {
+const Tile = ({ item, onSelect }: any) => {
     const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
         id: `palette:${item.type}`,
         data: { type: "palette", fieldType: item.type },
@@ -67,7 +67,7 @@ const Tile = ({ item, onAddField }: any) => {
             ref={setNodeRef}
             {...listeners}
             {...attributes}
-            onClick={() => onAddField(item.type)}
+            onClick={onSelect}
             style={{
                 display: "flex",
                 alignItems: "center",
@@ -118,13 +118,21 @@ const Tile = ({ item, onAddField }: any) => {
 /* ----------------------------------------------
    MAIN PANEL
 ---------------------------------------------- */
-const FormBuilderPanel: React.FC<{ onAddField: (type: string) => void }> = ({ onAddField }) => {
+const FormBuilderPanel = ({ onAddField }: any) => {
     const [search, setSearch] = useState("");
+    const [showTableModal, setShowTableModal] = useState(false);
+
+    const handleSelect = (type: string) => {
+        if (type === "table") {
+            setShowTableModal(true);
+        } else {
+            onAddField(type);
+        }
+    };
 
     return (
-        <div style={{ padding: 10 }}>
-            {/* Sticky Search */}
-            <div style={{ position: "sticky", top: 0, zIndex: 2, background: "#fff", paddingBottom: 8 }}>
+        <>
+            <div style={{ padding: 10 }}>
                 <Form.Control
                     size="sm"
                     placeholder="Search field…"
@@ -137,48 +145,67 @@ const FormBuilderPanel: React.FC<{ onAddField: (type: string) => void }> = ({ on
                         border: "1px solid #dcdcdc",
                     }}
                 />
+
+                {categories.map((section) => {
+                    const visible = section.items.filter((i) =>
+                        i.label.toLowerCase().includes(search.toLowerCase())
+                    );
+                    if (!visible.length) return null;
+
+                    return (
+                        <div key={section.title} style={{ marginTop: 14 }}>
+                            <div className="text-muted small fw-bold mb-2">
+                                {section.title}
+                            </div>
+
+                            <div
+                                style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(3,1fr)",
+                                    gap: 6,
+                                }}
+                            >
+                                {visible.map((item) => (
+                                    <Tile
+                                        key={item.type}
+                                        item={item}
+                                        onSelect={() => handleSelect(item.type)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
-            {categories.map(section => {
-                const visible = section.items.filter(i =>
-                    i.label.toLowerCase().includes(search.toLowerCase())
-                );
-                if (!visible.length) return null;
+            {/* ================= TABLE DESIGNER MODAL ================= */}
+            <TableConfigModal
+                open={showTableModal}
+                onClose={() => setShowTableModal(false)}
+                onCreate={(table: any) => {
+                    // 🔐 ABSOLUTE GUARANTEE TABLE CONFIG
+                    onAddField("table", {
+                        table: table ?? {
+                            columns: [
+                                {
+                                    id: crypto.randomUUID(),
+                                    label: "Column 1",
+                                    fieldType: "text",
+                                },
+                            ],
+                            rowsData: [
+                                {
+                                    id: crypto.randomUUID(),
+                                    cells: {},
+                                },
+                            ],
+                        },
+                    });
 
-                return (
-                    <div key={section.title} style={{ marginTop: 14 }}>
-                        <div
-                            style={{
-                                fontSize: 10,
-                                fontWeight: 700,
-                                color: "#6c757d",
-                                marginBottom: 6,
-                                letterSpacing: 0.5,
-                                textTransform: "uppercase",
-                            }}
-                        >
-                            {section.title}
-                        </div>
-
-                        <div
-                            style={{
-                                display: "grid",
-                                gridTemplateColumns: "repeat(3, 1fr)",
-                                gap: 6,
-                            }}
-                        >
-                            {visible.map(item => (
-                                <Tile
-                                    key={item.type}
-                                    item={item}
-                                    onAddField={onAddField}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
+                    setShowTableModal(false);
+                }}
+            />
+        </>
     );
 };
 

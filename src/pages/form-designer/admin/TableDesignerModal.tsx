@@ -9,26 +9,18 @@ interface Column {
 
 interface Row {
     id: string;
-    cells: Record<string, any>; // key = columnId
+    cells: Record<string, any>;
 }
 
 interface Props {
     open: boolean;
     onClose: () => void;
-    tableFieldId: string | null;
-    findFieldLocation: (id: string) => any;
-    onSave: (updated: any) => void;
-    pendingNewField?: null | { field: any };
-    onCreate?: (updated: any) => void;
+    onCreate: (table: any) => void;
 }
 
 const TableDesignerModal: React.FC<Props> = ({
     open,
     onClose,
-    tableFieldId,
-    findFieldLocation,
-    onSave,
-    pendingNewField,
     onCreate,
 }) => {
     const [columns, setColumns] = useState<Column[]>([]);
@@ -38,42 +30,33 @@ const TableDesignerModal: React.FC<Props> = ({
     useEffect(() => {
         if (!open) return;
 
-        let field: any = null;
+        const initialCols: Column[] = [
+            { id: crypto.randomUUID(), label: "Column 1" },
+        ];
 
-        if (tableFieldId) {
-            const loc = findFieldLocation(tableFieldId);
-            field = loc?.col?.fields?.find((f: any) => f.id === tableFieldId);
-        } else if (pendingNewField) {
-            field = pendingNewField.field;
-        }
+        const initialRows: Row[] = [
+            {
+                id: crypto.randomUUID(),
+                cells: Object.fromEntries(
+                    initialCols.map((c) => [c.id, ""])
+                ),
+            },
+        ];
 
-        const cols: Column[] =
-            field?.columns ?? [{ id: "c1", label: "Column 1" }];
-
-        const rowCount = field?.rows ?? 3;
-
-        const rs: Row[] =
-            field?.rowsData ??
-            Array.from({ length: rowCount }).map((_, i) => ({
-                id: `r${i + 1}`,
-                cells: Object.fromEntries(cols.map((c) => [c.id, ""])),
-            }));
-
-        setColumns(cols);
-        setRows(rs);
-    }, [open, tableFieldId, pendingNewField, findFieldLocation]);
+        setColumns(initialCols);
+        setRows(initialRows);
+    }, [open]);
 
     /* ---------- COLUMN ACTIONS ---------- */
 
     const addColumn = () => {
         const newCol: Column = {
-            id: `c${columns.length + 1}`,
+            id: crypto.randomUUID(),
             label: `Column ${columns.length + 1}`,
         };
 
         setColumns((prev) => [...prev, newCol]);
 
-        // 🔑 update rows
         setRows((prev) =>
             prev.map((r) => ({
                 ...r,
@@ -86,12 +69,10 @@ const TableDesignerModal: React.FC<Props> = ({
         if (columns.length === 1) return;
 
         setColumns((prev) => prev.filter((c) => c.id !== colId));
-
-        // 🔑 remove cell from each row
         setRows((prev) =>
             prev.map((r) => {
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { [colId]: _, ...rest } = r.cells;
+                const { [colId]: _unused, ...rest } = r.cells;
                 return { ...r, cells: rest };
             })
         );
@@ -103,7 +84,7 @@ const TableDesignerModal: React.FC<Props> = ({
         setRows((prev) => [
             ...prev,
             {
-                id: `r${prev.length + 1}`,
+                id: crypto.randomUUID(),
                 cells: Object.fromEntries(columns.map((c) => [c.id, ""])),
             },
         ]);
@@ -117,15 +98,11 @@ const TableDesignerModal: React.FC<Props> = ({
     /* ---------- SAVE ---------- */
 
     const handleSave = () => {
-        const payload = {
+        onCreate({
             columns,
-            rows: rows.length,
             rowsData: rows,
-        };
-
-        if (tableFieldId) onSave(payload);
-        else if (pendingNewField && onCreate) onCreate(payload);
-        else onSave(payload);
+        });
+        onClose();
     };
 
     return (
@@ -135,47 +112,45 @@ const TableDesignerModal: React.FC<Props> = ({
             </Modal.Header>
 
             <Modal.Body>
-                {/* Columns */}
-                <div className="mb-3">
-                    <h6>Columns</h6>
-                    {columns.map((c) => (
-                        <div key={c.id} className="d-flex gap-2 mb-2">
-                            <Form.Control
-                                size="sm"
-                                value={c.label}
-                                onChange={(e) =>
-                                    setColumns((prev) =>
-                                        prev.map((x) =>
-                                            x.id === c.id
-                                                ? { ...x, label: e.target.value }
-                                                : x
-                                        )
+                <h6>Columns</h6>
+                {columns.map((c) => (
+                    <div key={c.id} className="d-flex gap-2 mb-2">
+                        <Form.Control
+                            size="sm"
+                            value={c.label}
+                            onChange={(e) =>
+                                setColumns((prev) =>
+                                    prev.map((x) =>
+                                        x.id === c.id
+                                            ? { ...x, label: e.target.value }
+                                            : x
                                     )
-                                }
-                            />
-                            <Button
-                                size="sm"
-                                variant="outline-danger"
-                                onClick={() => removeColumn(c.id)}
-                            >
-                                ✕
-                            </Button>
-                        </div>
-                    ))}
-                    <Button size="sm" onClick={addColumn}>
-                        + Add Column
-                    </Button>
-                </div>
+                                )
+                            }
+                        />
+                        <Button
+                            size="sm"
+                            variant="outline-danger"
+                            onClick={() => removeColumn(c.id)}
+                        >
+                            ✕
+                        </Button>
+                    </div>
+                ))}
+                <Button size="sm" onClick={addColumn}>
+                    + Add Column
+                </Button>
 
-                {/* Table Preview / Row Editor */}
-                <h6>Rows (auto-mapped to columns)</h6>
+                <hr />
+
+                <h6>Rows</h6>
                 <Table bordered size="sm">
                     <thead>
                         <tr>
                             {columns.map((c) => (
                                 <th key={c.id}>{c.label}</th>
                             ))}
-                            <th style={{ width: "60px" }}></th>
+                            <th />
                         </tr>
                     </thead>
                     <tbody>

@@ -34,7 +34,7 @@ import FormRunner from "./enduser/FormRunner";
 import CommonLoader from "../../components/common/CommonLoader";
 import AutoSaveToast from "../../components/common/AutoSaveToast";
 
-import type { FieldType } from "./types/formTypes";
+import type { FieldType, FormField } from "./types/formTypes";
 import { FormDesignerService } from "./services/FormDesignerService";
 import { nanoid } from "nanoid";
 
@@ -139,13 +139,41 @@ const FormDesignerPage: React.FC = () => {
         const O = over.data.current;
 
         /* PALETTE → COLUMN */
+        /* PALETTE → COLUMN */
         if (A?.type === "palette" && O?.type === "column-drop") {
+            const type = A.fieldType as FieldType;
+
             designer.addFieldToColumn(O.rowId, O.colId, {
                 id: nanoid(),
-                type: A.fieldType,
-                label: A.fieldType,
+                key: `${type}_${Date.now()}`,
+                type,
+                label: type,
+
+                // 🔥 IMPORTANT: TABLE INIT
+                ...(type === "table"
+                    ? {
+                        table: {
+                            columns: [
+                                {
+                                    id: crypto.randomUUID(),
+                                    label: "Column 1",
+                                    fieldType: "text",
+                                },
+                            ],
+                            rowsData: [
+                                {
+                                    id: crypto.randomUUID(),
+                                    cells: {},
+                                },
+                            ],
+                        },
+                    }
+                    : {}),
             });
+
+            return;
         }
+
 
 
         /* FIELD → FIELD */
@@ -286,8 +314,9 @@ const FormDesignerPage: React.FC = () => {
                 <Row className="g-0" style={{ height: "calc(100vh - 48px)" }}>
                     <Col md={3} className="border-end bg-white">
                         <FormBuilderPanel
-                            onAddField={(type: any) => {
+                            onAddField={(type: FieldType, extra?: Partial<FormField>) => {
                                 if (!rows.length) addRow([12]);
+
                                 addFieldToColumn(
                                     rows[0].id,
                                     rows[0].columns[0].id,
@@ -295,11 +324,36 @@ const FormDesignerPage: React.FC = () => {
                                         id: crypto.randomUUID(),
                                         key: `${type}_${Date.now()}`,
                                         label: type,
-                                        type: type as FieldType,
+                                        type,
+
+                                        // ✅ THIS IS THE FIX
+                                        ...extra,
+
+                                        // 🔐 ABSOLUTE SAFETY FOR TABLE
+                                        ...(type === "table" && !extra?.table
+                                            ? {
+                                                table: {
+                                                    columns: [
+                                                        {
+                                                            id: crypto.randomUUID(),
+                                                            label: "Column 1",
+                                                            fieldType: "text",
+                                                        },
+                                                    ],
+                                                    rowsData: [
+                                                        {
+                                                            id: crypto.randomUUID(),
+                                                            cells: {},
+                                                        },
+                                                    ],
+                                                },
+                                            }
+                                            : {}),
                                     }
                                 );
                             }}
                         />
+
                     </Col>
 
                     <Col

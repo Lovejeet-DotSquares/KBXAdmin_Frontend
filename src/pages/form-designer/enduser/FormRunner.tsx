@@ -328,28 +328,51 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                     />
                 );
 
+
+            /* ================= TABLE (✅ FIXED) ================= */
             case "table":
+                if (!field.table?.columns?.length) {
+                    return <div className="text-muted small">No table configuration</div>;
+                }
+
                 return (
                     <Controller
                         name={name}
                         control={control}
-                        defaultValue={field.defaultValue || [[""]]}
+                        defaultValue={Object.fromEntries(
+                            (field.table.rowsData || []).map((r: any) => [
+                                r.id,
+                                { ...r.cells },
+                            ])
+                        )}
                         render={({ field: ctrl }) => (
-                            <table className="table table-bordered">
+                            <table className="table table-bordered table-sm">
+                                <thead>
+                                    <tr>
+                                        {field.table.columns.map((col: any) => (
+                                            <th key={col.id}>{col.label}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+
                                 <tbody>
-                                    {ctrl.value.map((row: any[], r: number) => (
-                                        <tr key={r}>
-                                            {row.map((cell: any, c: number) => (
-                                                <td key={c}>
+                                    {(field.table.rowsData || []).map((row: any) => (
+                                        <tr key={row.id}>
+                                            {field.table.columns.map((col: any) => (
+                                                <td key={col.id}>
                                                     <input
-                                                        className="form-control"
-                                                        value={cell}
+                                                        className="form-control form-control-sm"
                                                         disabled={disabled}
-                                                        onChange={(e) => {
-                                                            const data = [...ctrl.value];
-                                                            data[r][c] = e.target.value;
-                                                            ctrl.onChange(data);
-                                                        }}
+                                                        value={ctrl.value?.[row.id]?.[col.id] || ""}
+                                                        onChange={(e) =>
+                                                            ctrl.onChange({
+                                                                ...ctrl.value,
+                                                                [row.id]: {
+                                                                    ...ctrl.value?.[row.id],
+                                                                    [col.id]: e.target.value,
+                                                                },
+                                                            })
+                                                        }
                                                     />
                                                 </td>
                                             ))}

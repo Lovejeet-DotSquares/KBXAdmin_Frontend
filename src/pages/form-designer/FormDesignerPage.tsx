@@ -120,7 +120,7 @@ const FormDesignerPage: React.FC = () => {
                 setAutoSaving(false);
             }
         },
-        20000
+        2000000 // 20 seconds
     );
 
     /* ================= DND ================= */
@@ -325,11 +325,7 @@ const FormDesignerPage: React.FC = () => {
                                         key: `${type}_${Date.now()}`,
                                         label: type,
                                         type,
-
-                                        // ✅ THIS IS THE FIX
                                         ...extra,
-
-                                        // 🔐 ABSOLUTE SAFETY FOR TABLE
                                         ...(type === "table" && !extra?.table
                                             ? {
                                                 table: {

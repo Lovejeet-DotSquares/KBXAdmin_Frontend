@@ -183,7 +183,6 @@ const FormBuilderPanel = ({ onAddField }: any) => {
                 open={showTableModal}
                 onClose={() => setShowTableModal(false)}
                 onCreate={(table: any) => {
-                    // 🔐 ABSOLUTE GUARANTEE TABLE CONFIG
                     onAddField("table", {
                         table: table ?? {
                             columns: [

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
 import type {
     FormField,
@@ -144,18 +143,6 @@ const FieldPropertiesPanel: React.FC<Props> = ({
                     updateStyle({ fontSize: Number(e.target.value) })
                 }
             />
-            {/* FONT SIZE */}
-            <label className="form-label">Font Size (px)</label>
-            <input
-                type="number"
-                className="form-control form-control-sm mb-2"
-                value={field.style?.fontSize || ""}
-                disabled={readOnly}
-                onChange={(e) =>
-                    updateStyle({ fontSize: Number(e.target.value) })
-                }
-            />
-
             {/* FONT WEIGHT */}
             <label className="form-label">Font Weight</label>
             <select

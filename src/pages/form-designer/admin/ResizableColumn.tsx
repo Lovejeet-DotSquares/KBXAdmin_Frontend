@@ -1,5 +1,3 @@
-// components/ResizableColumn.tsx
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useRef } from "react";
 
 const ResizableColumn = ({ rowId, colId, rowContainerRef, onResizeUnits, children }: any) => {

@@ -1,7 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
-
-/* ---------------- NORMALIZER ---------------- */
 
 const normalize = (rows: any[] = []) => {
     return {

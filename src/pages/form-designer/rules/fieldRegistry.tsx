@@ -1,4 +1,3 @@
-// core/fieldRegistry.ts
 import type { FieldType } from "../types/formTypes";
 
 /* ------------------------------------

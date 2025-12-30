@@ -1,9 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-/**
- * Rule types used by RuleBuilderPanel, useRuleEngine and export.
- */
-
 export type RuleOperator =
   | "EQ"
   | "NEQ"

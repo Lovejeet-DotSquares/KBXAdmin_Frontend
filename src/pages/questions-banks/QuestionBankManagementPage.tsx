@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import type { FieldType } from "../form-designer/types/formTypes";
 import { useQuestionBank } from "./hooks/useQuestionBank";

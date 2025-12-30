@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useForm, Controller, useWatch } from "react-hook-form";
 import type { DesignerRow } from "../hooks/useGridDesigner";
 import SignatureCanvas from "react-signature-canvas";
@@ -421,7 +420,7 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
     /* ---------------- RENDER ---------------- */
 
     return (
-        <form onSubmit={handleSubmit(console.log)}>
+        <form onSubmit={handleSubmit((data => console.log("Form Data:", data)))}>
             {rows.map((row) => (
                 <div key={row.id} className="d-flex gap-3 mb-4">
                     {row.columns.map((col: any) => (

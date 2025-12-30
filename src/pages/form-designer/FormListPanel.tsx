@@ -1,5 +1,3 @@
-/* FormsListPage.tsx */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useCallback } from "react";
 import { Card, Button, Table, Form, Modal } from "react-bootstrap";
 import { FaPlus, FaEdit, FaTrash } from "react-icons/fa";

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import ApiUtility from "../../api/ApiUtility";
 import type { UserRole } from "../../types/user";

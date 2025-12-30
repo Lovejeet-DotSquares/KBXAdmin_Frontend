@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import ApiUtility from "../../api/ApiUtility";

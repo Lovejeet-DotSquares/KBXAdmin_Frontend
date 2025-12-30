@@ -1,4 +1,3 @@
-/* useGridDesigner.ts */
 import { useCallback, useState } from "react";
 import { nanoid } from "nanoid";
 import type { FormField } from "../types/formTypes";
@@ -364,7 +363,7 @@ export default function useGridDesigner() {
 
   return {
     rows,
-    setRows, // ✅ exposed for initial load ONLY
+    setRows,
 
     addRow,
     addRowBelow,

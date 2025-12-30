@@ -10,8 +10,8 @@ const Topbar: React.FC = () => {
 
             <div className="d-flex align-items-center gap-3">
                 <div className="text-end">
-                    <small className="d-block fw-bold">{email}</small>
-                    <small className="text-muted">{role}</small>
+                    <span className="d-block fw-bold">{email}</span>
+                    <span className="text-muted">{role}</span>
                 </div>
 
                 <button className="btn btn-outline-danger btn-sm" onClick={logout}>

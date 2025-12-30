@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import { Modal, Button, Table, Form } from "react-bootstrap";
 
@@ -71,7 +70,6 @@ const TableDesignerModal: React.FC<Props> = ({
         setColumns((prev) => prev.filter((c) => c.id !== colId));
         setRows((prev) =>
             prev.map((r) => {
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 const { [colId]: _unused, ...rest } = r.cells;
                 return { ...r, cells: rest };
             })

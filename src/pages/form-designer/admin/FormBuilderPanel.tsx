@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Form } from "react-bootstrap";

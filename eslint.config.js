@@ -53,9 +53,6 @@ export default defineConfig([
       /* Hooks safety */
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
-
-      /* Formatting sanity (non-Prettier) */
-      "no-multiple-empty-lines": ["warn", { max: 2 }],
     },
   },
 ]);

@@ -46,7 +46,7 @@ const Login: React.FC = () => {
                 <div className="login-right">
                     <h2>Welcome</h2>
                     <p>Sign in to continue to KBX</p>
-
+                    {console.log("API:", import.meta.env.VITE_API_URL) as any}
                     <Formik
                         initialValues={{ email: "", password: "" }}
                         validationSchema={schema}

@@ -99,7 +99,7 @@ const FormDesignerPage: React.FC = () => {
             setRows(schema.rows || []);
             setLoading(false);
         })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
     }, [formId]);
 
     /* ================= AUTOSAVE ================= */
@@ -147,7 +147,6 @@ const FormDesignerPage: React.FC = () => {
                 type,
                 label: type,
 
-                // 🔥 IMPORTANT: TABLE INIT
                 ...(type === "table"
                     ? {
                         table: {
@@ -174,7 +173,6 @@ const FormDesignerPage: React.FC = () => {
 
 
 
-        /* FIELD → FIELD */
         if (A?.type === "field" && O?.type === "field") {
             if (A.rowId === O.rowId && A.colId === O.colId) {
                 designer.moveFieldWithinColumn(A.rowId, A.colId, A.index, O.index);

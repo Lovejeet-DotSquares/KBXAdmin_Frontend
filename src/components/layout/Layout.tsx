@@ -11,8 +11,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 mobileOpen={mobileOpen}
                 onCloseMobile={() => setMobileOpen(false)}
             />
-
-
             <div className="flex-grow-1">
 
                 <Topbar />

@@ -31,12 +31,12 @@ export default defineConfig([
       /* ✅ allow `any` */
       "@typescript-eslint/no-explicit-any": "off",
       "no-debugger": "off",
+      "react-hooks/exhaustive-deps": "off",
       /* 🔥 avoid noise in React + TS */
       "@typescript-eslint/no-unused-vars": [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
-
       "@typescript-eslint/ban-ts-comment": [
         "warn",
         {
@@ -52,7 +52,6 @@ export default defineConfig([
 
       /* Hooks safety */
       "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
     },
   },
 ]);

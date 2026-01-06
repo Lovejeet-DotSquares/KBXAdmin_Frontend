@@ -2,15 +2,14 @@ import { useEffect, useState } from "react";
 import { nanoid } from "nanoid";
 import type { QuestionBankItem } from "../types/question-bank";
 
-const STORAGE_KEY = "formDesigner_questionBank_v1";
+const STORAGE_KEY = "formDesigner_questionBank_v2";
 
 const loadFromStorage = (): QuestionBankItem[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    return JSON.parse(raw) as QuestionBankItem[];
-  } catch (e) {
-    console.warn("Failed to load question bank", e);
+    return JSON.parse(raw);
+  } catch {
     return [];
   }
 };
@@ -30,18 +29,34 @@ export const useQuestionBank = () => {
     saveToStorage(items);
   }, [items]);
 
-  const addQuestion = (partial: Omit<QuestionBankItem, "id">) =>
-    setItems((p) => [...p, { ...partial, id: nanoid() }]);
+  const addQuestion = (
+    input: Omit<QuestionBankItem, "id" | "createdAt" | "updatedAt">
+  ) => {
+    const now = new Date().toISOString();
+    setItems((p) => [
+      ...p,
+      {
+        ...input,
+        id: nanoid(),
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+  };
 
   const updateQuestion = (id: string, patch: Partial<QuestionBankItem>) =>
-    setItems((p) => p.map((q) => (q.id === id ? { ...q, ...patch } : q)));
+    setItems((p) =>
+      p.map((q) =>
+        q.id === id
+          ? { ...q, ...patch, updatedAt: new Date().toISOString() }
+          : q
+      )
+    );
 
   const deleteQuestion = (id: string) =>
     setItems((p) => p.filter((q) => q.id !== id));
 
-  const clear = () => setItems([]);
-
-  return { items, addQuestion, updateQuestion, deleteQuestion, clear };
+  return { items, addQuestion, updateQuestion, deleteQuestion };
 };
 
 export default useQuestionBank;

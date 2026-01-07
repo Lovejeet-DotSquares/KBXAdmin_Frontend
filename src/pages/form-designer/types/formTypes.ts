@@ -1,3 +1,5 @@
+import type { RuleDefinition } from "./ruleTypes";
+
 /* ------------------------------------
  * FIELD TYPE
  * ------------------------------------ */
@@ -155,7 +157,8 @@ export interface FormField {
   dependencies?: string[];
   optionsMode?: "manual" | "master";
   masterOptionsKey?: "yesno";
-
+  /* 🎯 RULES (NEW SOURCE OF TRUTH) */
+  rules?: RuleDefinition[];
   style?: {
     fontSize?: number;
     fontWeight?: "normal" | "bold" | "lighter";

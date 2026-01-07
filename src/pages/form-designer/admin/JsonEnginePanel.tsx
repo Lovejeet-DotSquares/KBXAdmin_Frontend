@@ -1,12 +1,15 @@
 import React from "react";
+import type { RuleDefinition } from "../types/ruleTypes";
 
 const normalize = (rows: any[] = []) => {
     return {
-        version: "1.1",
+        version: "2.0",
         generatedAt: new Date().toISOString(),
+
         meta: {
             engine: "KBX-Form-Engine",
             mode: "designer",
+            ruleEngine: "v1",
         },
 
         rows: rows.map((r) => ({
@@ -19,8 +22,6 @@ const normalize = (rows: any[] = []) => {
                 margin: r.style?.margin ?? "0",
                 border: r.style?.border ?? "none",
             },
-
-            hidden: r.hidden ?? false,
 
             responsive: {
                 desktop: r.responsive?.desktop ?? true,
@@ -47,24 +48,29 @@ const normalize = (rows: any[] = []) => {
 
                 /* -------- FIELDS -------- */
                 fields: (c.fields ?? []).map((f: any) => ({
+                    /* Identity */
                     id: f.id,
                     key: f.key,
                     type: f.type,
                     label: f.label,
 
-                    value: {
-                        default: f.defaultValue ?? null,
+                    /* -------- DEFAULT STATE (BASE) -------- */
+                    defaultState: {
+                        value: f.defaultValue ?? null,
+                        visible: f.defaultVisible ?? !f.hidden,
+                        enabled: f.defaultEnabled ?? !f.disabled,
                         readonly: f.readonly ?? false,
-                        disabled: f.disabled ?? false,
                         required: f.required ?? false,
                     },
 
+                    /* -------- UI -------- */
                     ui: {
                         placeholder: f.placeholder ?? "",
                         helperText: f.helperText ?? "",
-                        layout: f.layout ?? "stacked", // inline | stacked | fullWidth
+                        layout: f.layout ?? "stacked",
                     },
 
+                    /* -------- STYLE -------- */
                     style: {
                         fontSize: f.style?.fontSize ?? 14,
                         fontWeight: f.style?.fontWeight ?? "normal",
@@ -78,21 +84,19 @@ const normalize = (rows: any[] = []) => {
                         fontFamily: f.style?.fontFamily ?? "inherit",
                     },
 
+                    /* -------- OPTIONS -------- */
                     options: f.options ?? [],
-
                     table: f.table ?? null,
 
+                    /* -------- VALIDATION -------- */
                     validation: {
                         rules: f.validationRules ?? [],
                     },
 
-                    visibility: {
-                        groups: f.visibilityConditions ?? [],
-                        defaultVisible: f.hidden ? false : true,
-                    },
+                    /* -------- RULE ENGINE (NEW) -------- */
+                    rules: (f.rules ?? []) as RuleDefinition[],
 
-                    actions: f.actions ?? null,
-
+                    /* -------- META -------- */
                     meta: {
                         createdAt: f.meta?.createdAt ?? null,
                         updatedAt: f.meta?.updatedAt ?? null,
@@ -103,7 +107,6 @@ const normalize = (rows: any[] = []) => {
         })),
     };
 };
-
 /* ---------------- PANEL ---------------- */
 
 const JsonEnginePanel: React.FC<{ rows: any[] }> = ({ rows }) => {

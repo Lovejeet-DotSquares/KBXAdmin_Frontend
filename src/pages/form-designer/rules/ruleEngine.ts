@@ -14,11 +14,13 @@ export interface FieldState {
 export type FieldStateMap = Record<string, FieldState>;
 
 export interface ExecutionContext {
-  fields: FieldStateMap; // current field meta (visible/enabled/value)
-  formData: Record<string, any>; // live form values
+  fields: FieldStateMap;
+  formData: Record<string, any>;
+  onValueChange?: (key: string, value: any) => void;
 }
 
-/** evaluate single condition */
+/* ---------------- CONDITION ---------------- */
+
 export const evaluateCondition = (
   cond: RuleCondition,
   formData: any
@@ -52,104 +54,94 @@ export const evaluateCondition = (
   }
 };
 
-/** Evaluate nested group (AND/OR) */
+/* ---------------- GROUP ---------------- */
+
 export const evaluateGroup = (group: RuleGroup, formData: any): boolean => {
-  const condsOk =
-    group.conditions && group.conditions.length
-      ? group.type === "AND"
-        ? group.conditions.every((c: any) => evaluateCondition(c, formData))
-        : group.conditions.some((c: any) => evaluateCondition(c, formData))
-      : group.type === "AND"
-      ? true
-      : false;
+  const conds = group.conditions?.length
+    ? group.type === "AND"
+      ? group.conditions.every((c) => evaluateCondition(c, formData))
+      : group.conditions.some((c) => evaluateCondition(c, formData))
+    : true;
 
-  const childrenOk =
-    group.children && group.children.length
-      ? group.type === "AND"
-        ? group.children.every((child: any) => evaluateGroup(child, formData))
-        : group.children.some((child: any) => evaluateGroup(child, formData))
-      : group.type === "AND"
-      ? true
-      : false;
+  const children = group.children?.length
+    ? group.type === "AND"
+      ? group.children.every((g) => evaluateGroup(g, formData))
+      : group.children.some((g) => evaluateGroup(g, formData))
+    : true;
 
-  return group.type === "AND" ? condsOk && childrenOk : condsOk || childrenOk;
+  return group.type === "AND" ? conds && children : conds || children;
 };
 
-/** Apply one action immutably to ctx */
+/* ---------------- ACTION ---------------- */
+
 export const applyAction = (
   action: RuleAction,
   ctx: ExecutionContext
 ): ExecutionContext => {
   const fields = { ...ctx.fields };
-  const target = action.targetFieldKey;
+  const key = action.targetFieldKey;
 
-  // ensure target exists
-  if (target && !fields[target]) {
-    fields[target] = { visible: true, enabled: true, value: undefined };
+  if (key && !fields[key]) {
+    fields[key] = { visible: true, enabled: true };
   }
 
   switch (action.type) {
     case "SHOW_FIELD":
-      if (target) fields[target] = { ...fields[target], visible: true };
+      fields[key!].visible = true;
       break;
+
     case "HIDE_FIELD":
-      if (target) fields[target] = { ...fields[target], visible: false };
+      fields[key!].visible = false;
       break;
+
     case "ENABLE_FIELD":
-      if (target) fields[target] = { ...fields[target], enabled: true };
+      fields[key!].enabled = true;
       break;
+
     case "DISABLE_FIELD":
-      if (target) fields[target] = { ...fields[target], enabled: false };
+      fields[key!].enabled = false;
       break;
+
     case "SET_VALUE":
-      if (target) fields[target] = { ...fields[target], value: action.value };
+      fields[key!].value = action.value;
+      ctx.onValueChange?.(key!, action.value);
       break;
+
     case "TRIGGER_CLAUSE":
-      // clause triggers are domain-specific — we just record/log for now
-      // Real implementation: call a workflow handler (e.g., webhook, task runner)
-      // For now we do nothing to fields.
-      // console.debug("Trigger clause:", action.targetClauseId);
+      // Hook for workflows / APIs
       break;
   }
 
   return { ...ctx, fields };
 };
 
-/** Execute a single rule (if matches) */
+/* ---------------- RULE ---------------- */
+
 export const executeRule = (
   rule: RuleDefinition,
   ctx: ExecutionContext
 ): ExecutionContext => {
   if (!rule.enabled) return ctx;
 
-  const matches = evaluateGroup(rule.rootGroup, ctx.formData);
+  const matched = evaluateGroup(rule.rootGroup, ctx.formData);
+  if (!matched) return ctx;
 
-  if (!matches) return ctx;
-
-  let newCtx = { ...ctx };
-  // actions applied in order (priority of rules is handled by executeAllRules)
-  rule.actions.forEach((a: any) => {
-    newCtx = applyAction(a, newCtx);
+  let updated = ctx;
+  rule.actions.forEach((a) => {
+    updated = applyAction(a, updated);
   });
 
-  return newCtx;
+  return updated;
 };
 
-/** Execute multiple rules (sorted by priority asc) */
+/* ---------------- ENGINE ---------------- */
+
 export const executeAllRules = (
   rules: RuleDefinition[],
   ctx: ExecutionContext
 ): ExecutionContext => {
-  let updated = { ...ctx };
-
-  const active = rules
+  return rules
     .filter((r) => r.enabled)
-    .slice()
-    .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
-
-  active.forEach((r) => {
-    updated = executeRule(r, updated);
-  });
-
-  return updated;
+    .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
+    .reduce((acc, rule) => executeRule(rule, acc), ctx);
 };

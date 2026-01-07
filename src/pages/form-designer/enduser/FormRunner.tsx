@@ -3,83 +3,135 @@ import type { DesignerRow } from "../hooks/useGridDesigner";
 import SignatureCanvas from "react-signature-canvas";
 import { Editor } from "@tinymce/tinymce-react";
 import CustomMultiSelect from "../../../components/common/CustomMultiSelect";
+import React from "react";
 
 const UNIT_PX = 60;
 
-/* ---------------- RULE ENGINE HELPERS ---------------- */
+/* ======================================================
+   RULE ENGINE (PRODUCTION – RULEBUILDER COMPATIBLE)
+====================================================== */
+const normalizeValue = (v: any) => {
+    if (v === undefined || v === null) return null;
 
-const evaluateCondition = (value: any, operator: string, expected?: any) => {
-    switch (operator) {
-        case "equals": return value === expected;
-        case "not_equals": return value !== expected;
-        case "contains": return value?.includes?.(expected);
-        case "greater_than": return value > expected;
-        case "less_than": return value < expected;
-        case "is_empty": return value === undefined || value === null || value === "";
-        case "is_not_empty": return value !== undefined && value !== null && value !== "";
-        default: return true;
+    if (typeof v === "string") {
+        const s = v.toLowerCase().trim();
+        if (s === "yes") return true;
+        if (s === "no") return false;
+        if (s === "true") return true;
+        if (s === "false") return false;
+        return s;
+    }
+
+    return v;
+};
+
+
+
+const evalCondition = (cond: any, values: any): boolean => {
+    const left = normalizeValue(values[cond.fieldKey]);
+    const right = normalizeValue(cond.value);
+
+    switch (cond.operator) {
+        case "EQ": return left === right;
+        case "NEQ": return left !== right;
+        case "GT": return Number(left) > Number(right);
+        case "GTE": return Number(left) >= Number(right);
+        case "LT": return Number(left) < Number(right);
+        case "LTE": return Number(left) <= Number(right);
+        case "IN":
+            return Array.isArray(left) ? left.includes(right) : false;
+        case "NOT_IN":
+            return Array.isArray(left) ? !left.includes(right) : false;
+        case "IS_EMPTY":
+            return left === null || left === "";
+        case "NOT_EMPTY":
+            return left !== null && left !== "";
+        default:
+            return false;
     }
 };
 
+const evalGroup = (group: any, values: any): boolean => {
+    const hasConditions = group.conditions && group.conditions.length > 0;
+    const hasChildren = group.children && group.children.length > 0;
+
+    const conditionResult = hasConditions
+        ? (group.type === "AND"
+            ? group.conditions.every((c: any) => evalCondition(c, values))
+            : group.conditions.some((c: any) => evalCondition(c, values)))
+        : hasChildren
+            ? (group.type === "AND" ? true : false)
+            : true;
+
+    const childrenResult = hasChildren
+        ? (group.type === "AND"
+            ? group.children.every((g: any) => evalGroup(g, values))
+            : group.children.some((g: any) => evalGroup(g, values)))
+        : hasConditions
+            ? (group.type === "AND" ? true : false)
+            : true;
+
+    return group.type === "AND"
+        ? conditionResult && childrenResult
+        : conditionResult || childrenResult;
+
+};
+
+/** 🔥 SINGLE SOURCE OF TRUTH */
 const resolveVisibility = (field: any, values: any) => {
-    let visible = !field.hidden;
-    let disabled = !!field.disabled;
+    const hasRules = Array.isArray(field.rules) && field.rules.length > 0;
 
-    field.visibilityConditions?.forEach((group: any) => {
-        const results = group.conditions.map((c: any) =>
-            evaluateCondition(values[c.fieldKey], c.operator, c.value)
-        );
+    // 🔥 DEFAULT: hidden if rules exist
+    let visible = hasRules ? false : !field.hidden;
+    let disabled = field.disabled ?? false;
 
-        const match =
-            group.logic === "AND"
-                ? results.every(Boolean)
-                : results.some(Boolean);
+    const rules = field.rules ?? [];
 
-        if (match) {
-            if (group.action === "hide") visible = false;
-            if (group.action === "show") visible = true;
-            if (group.action === "disable") disabled = true;
-            if (group.action === "enable") disabled = false;
+    for (const rule of rules) {
+        if (!rule.enabled) continue;
+
+        const matched = evalGroup(rule.rootGroup, values);
+        if (!matched) continue;
+
+        for (const action of rule.actions ?? []) {
+            if (action.targetFieldKey !== field.key) continue;
+
+            switch (action.type) {
+                case "SHOW_FIELD":
+                    visible = true;
+                    break;
+
+                case "ENABLE_FIELD":
+                    disabled = false;
+                    break;
+
+                case "DISABLE_FIELD":
+                    disabled = true;
+                    break;
+            }
         }
-    });
+    }
 
     return { visible, disabled };
 };
 
-/* ---------------- VALIDATION MAPPER ---------------- */
+
+/* ======================================================
+   VALIDATION
+====================================================== */
 
 const mapValidationRules = (rules: any[] = []) => {
     const out: any = {};
-
     rules.forEach((r) => {
-        if (r.type === "required") {
-            out.required = r.message || "This field is required";
-        }
-        if (r.type === "min") {
-            out.min = { value: r.value, message: `Minimum value is ${r.value}` };
-        }
-        if (r.type === "max") {
-            out.max = { value: r.value, message: `Maximum value is ${r.value}` };
-        }
-        if (r.type === "length") {
-            if (r.min !== undefined) {
-                out.minLength = { value: r.min, message: `Minimum length is ${r.min}` };
-            }
-            if (r.max !== undefined) {
-                out.maxLength = { value: r.max, message: `Maximum length is ${r.max}` };
-            }
-        }
+        if (r.type === "required") out.required = r.message || "Required";
+        if (r.type === "min") out.min = { value: r.value, message: `Min ${r.value}` };
+        if (r.type === "max") out.max = { value: r.value, message: `Max ${r.value}` };
         if (r.type === "pattern") {
-            out.pattern = {
-                value: new RegExp(r.regex),
-                message: r.message || "Invalid format",
-            };
+            out.pattern = { value: new RegExp(r.regex), message: r.message };
         }
     });
-
     return out;
 };
-
 /* ---------------- DISPLAY HELPERS ---------------- */
 
 const DISPLAY_ONLY_FIELDS = new Set([
@@ -112,39 +164,54 @@ const getFieldStyle = (field: any) => ({
             : undefined,
 });
 
-/* ---------------- FORM RUNNER ---------------- */
+/* ======================================================
+   FORM RUNNER
+====================================================== */
 
 const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
+
     const defaultValues = Object.fromEntries(
-        rows.flatMap((r) =>
+        rows.flatMap(r =>
             r.columns.flatMap((c: any) =>
                 c.fields
                     .filter((f: any) => f.key)
-                    .map((f: any) => [f.key, f.defaultValue])
+                    .map((f: any) => [f.key, f.defaultValue ?? null])
             )
         )
     );
 
-    const {
-        register,
-        handleSubmit,
-        control,
-        formState: { errors },
-    } = useForm({ defaultValues });
-
-    const values = useWatch({ control });
-
+    const { register, handleSubmit, control, formState: { errors } } =
+        useForm({ defaultValues });
     const getListStyle = (style?: string) =>
         style === "roman"
             ? "upper-roman"
             : style === "alphabetic"
                 ? "lower-alpha"
                 : "decimal";
+    const watchedValues = useWatch({ control });
 
-    /* ---------------- FIELD RENDERER ---------------- */
+    /** 🔥 GUARANTEE ALL KEYS EXIST */
+    const values = React.useMemo(() => {
+        const v = { ...(watchedValues || {}) };
+        rows.forEach(r =>
+            r.columns.forEach((c: any) =>
+                c.fields.forEach((f: any) => {
+                    if (f.key && !(f.key in v)) {
+                        v[f.key] = f.defaultValue ?? null;
+                    }
+                })
+            )
+        );
+        return v;
+    }, [watchedValues, rows]);
+
+    /* ======================================================
+       FIELD RENDERER (UNCHANGED)
+    ====================================================== */
 
     const renderField = (field: any, disabled: boolean) => {
-        const name = field.key || field.id;
+        if (!field.key) return null;
+        const name = field.key;
         const rules = mapValidationRules(field.validationRules);
 
         switch (field.type) {
@@ -417,23 +484,20 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
         }
     };
 
-    /* ---------------- RENDER ---------------- */
+    /* ======================================================
+       RENDER
+    ====================================================== */
 
     return (
-        <form onSubmit={handleSubmit((data => console.log("Form Data:", data)))}>
-            {rows.map((row) => (
+        <form onSubmit={handleSubmit(data => console.log("FORM DATA", data))}>
+            {rows.map(row => (
                 <div key={row.id} className="d-flex gap-3 mb-4">
                     {row.columns.map((col: any) => (
-                        <div
-                            key={col.id}
-                            style={{
-                                flex: `${col.width} 0 0`,
-                                minWidth: col.width * UNIT_PX,
-                            }}
-                        >
+                        <div key={col.id} style={{ flex: col.width, minWidth: col.width * UNIT_PX }}>
                             {col.fields.map((field: any) => {
                                 const { visible, disabled } =
                                     resolveVisibility(field, values);
+
                                 if (!visible) return null;
 
                                 return (

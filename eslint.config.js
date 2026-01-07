@@ -32,11 +32,9 @@ export default defineConfig([
       "@typescript-eslint/no-explicit-any": "off",
       "no-debugger": "off",
       "react-hooks/exhaustive-deps": "off",
+      "react-hooks/set-state-in-effect": "off",
       /* 🔥 avoid noise in React + TS */
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
-      ],
+      "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/ban-ts-comment": [
         "warn",
         {

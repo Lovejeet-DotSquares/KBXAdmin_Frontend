@@ -531,7 +531,7 @@ const FormRunner = ({ rows }: { rows: DesignerRow[] }) => {
                 </div>
             ))}
 
-            <button className="btn btn-success">Submit</button>
+            {/*<button className="btn btn-success">Submit</button>*/}
         </form>
     );
 };

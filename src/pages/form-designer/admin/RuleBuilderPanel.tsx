@@ -258,7 +258,7 @@ const RuleBuilderPanel: React.FC<Props> = ({
                     ...(rule.actions[gid] ?? []),
                     {
                         id: nanoid(),
-                        type: "SHOW_FIELD", // 🔥 FORCE SHOW
+                        type: "SHOW_FIELD",
                         targetFieldKey: field.key!,
                     },
                 ],

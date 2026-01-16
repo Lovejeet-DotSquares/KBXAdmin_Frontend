@@ -676,7 +676,6 @@ const FieldPropertiesPanel: React.FC<Props> = ({
                                             );
 
                                             const rowsData = (field.table!.rowsData || []).map((r) => {
-                                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                                                 const { [col.id]: _, ...cells } = r.cells;
                                                 return { ...r, cells };
                                             });

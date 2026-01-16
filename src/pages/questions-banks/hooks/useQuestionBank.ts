@@ -21,7 +21,6 @@ export const useQuestionBank = () => {
   const [items, setItems] = useState<QuestionBankItem[]>([]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems(loadFromStorage());
   }, []);
 
